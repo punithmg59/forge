@@ -38,11 +38,15 @@ class CompletionResult(BaseModel):
     finish_reason: str | None = None
 
 
+EmbeddingInputType = Literal["query", "passage"]
+
+
 class EmbeddingRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     input: str
     model: str | None = None
+    input_type: EmbeddingInputType | None = None
     timeout: float | None = None
 
 

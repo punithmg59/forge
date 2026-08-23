@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
@@ -19,6 +20,8 @@ class VectorHit(BaseModel):
     source_type: str | None = None
     source_reference: str | None = None
     memory_id: str | None = None
+    memory_type: str | None = None
+    created_at: datetime | None = None
 
 
 class VectorRetriever(ABC):

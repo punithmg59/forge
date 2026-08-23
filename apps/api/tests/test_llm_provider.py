@@ -245,6 +245,29 @@ async def test_embedding_response_is_normalized() -> None:
 
 
 @pytest.mark.asyncio
+async def test_asymmetric_embedding_models_send_input_type() -> None:
+    def handler(_url: str, _headers: dict[str, str] | None, payload: Any) -> _FakeResponse:
+        return _FakeResponse(
+            200,
+            {
+                "object": "list",
+                "data": [{"object": "embedding", "index": 0, "embedding": [0.1, 0.2]}],
+                "model": payload["model"],
+            },
+        )
+
+    _FakeAsyncClient.last["handler"] = handler
+    provider = _provider(embedding_model="nvidia/nv-embedqa-e5-v5")
+    try:
+        with patch("app.services.llm.newtron.httpx.AsyncClient", _FakeAsyncClient):
+            await provider.embed(EmbeddingRequest(input="search query"))
+    finally:
+        _FakeAsyncClient.last.pop("handler", None)
+
+    assert _FakeAsyncClient.last["json"]["input_type"] == "query"
+
+
+@pytest.mark.asyncio
 async def test_timeout_becomes_normalized_error() -> None:
     class TimeoutClient(_FakeAsyncClient):
         async def post(self, url: str, headers: dict[str, str] | None = None, json: Any = None) -> _FakeResponse:

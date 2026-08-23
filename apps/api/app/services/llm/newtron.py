@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 
@@ -24,6 +24,7 @@ from app.services.llm.types import (
 )
 
 DEFAULT_NEWTRON_BASE_URL = "https://integrate.api.nvidia.com/v1"
+_RETRYABLE_STATUS_CODES = frozenset({408, 502, 503, 504})
 
 
 class NewtronProvider(LLMProvider):
@@ -94,6 +95,9 @@ class NewtronProvider(LLMProvider):
         model = request.model or self._embedding_model
         timeout = request.timeout if request.timeout is not None else self._timeout_seconds
         payload = {"model": model, "input": request.input}
+        input_type = request.input_type or self._default_embedding_input_type(model)
+        if input_type is not None:
+            payload["input_type"] = input_type
         body = await self._post_json(
             f"{self._base_url}/embeddings",
             payload=payload,
@@ -117,6 +121,13 @@ class NewtronProvider(LLMProvider):
         if not self._api_key:
             raise ProviderAuthError("LLM API key is not configured")
 
+    @staticmethod
+    def _default_embedding_input_type(model: str) -> Literal["query", "passage"] | None:
+        lowered = model.lower()
+        if "embedqa" in lowered or "e5" in lowered or "nemotron-3-embed" in lowered:
+            return "query"
+        return None
+
     async def _post_json(
         self,
         url: str,
@@ -128,15 +139,26 @@ class NewtronProvider(LLMProvider):
             "Authorization": f"Bearer {self._api_key}",
             "Content-Type": "application/json",
         }
-        try:
-            async with httpx.AsyncClient(timeout=timeout) as client:
-                response = await client.post(url, headers=headers, json=payload)
-        except httpx.TimeoutException as exc:
-            raise ProviderTimeoutError("LLM request timed out") from exc
-        except httpx.HTTPError as exc:
-            raise ProviderUnavailableError("LLM provider unavailable") from exc
+        last_response: httpx.Response | None = None
+        for attempt in range(2):
+            try:
+                async with httpx.AsyncClient(timeout=timeout) as client:
+                    response = await client.post(url, headers=headers, json=payload)
+            except httpx.TimeoutException as exc:
+                if attempt == 0:
+                    continue
+                raise ProviderTimeoutError("LLM request timed out") from exc
+            except httpx.HTTPError as exc:
+                if attempt == 0:
+                    continue
+                raise ProviderUnavailableError("LLM provider unavailable") from exc
 
-        return self._parse_response(response)
+            last_response = response
+            if response.status_code not in _RETRYABLE_STATUS_CODES or attempt == 1:
+                return self._parse_response(response)
+
+        assert last_response is not None
+        return self._parse_response(last_response)
 
     def _parse_response(self, response: httpx.Response) -> dict[str, Any]:
         if response.status_code in {401, 403}:
