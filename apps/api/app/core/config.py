@@ -19,6 +19,13 @@ class Settings(BaseSettings):
     session_cookie_name: str = "forge_session"
     session_ttl_seconds: int = 60 * 60 * 24 * 14
 
+    llm_provider: str = "newtron"
+    llm_model: str = "nvidia/nemotron-3-ultra-550b-a55b"
+    llm_embedding_model: str = "nvidia/nv-embedqa-e5-v5"
+    llm_timeout_seconds: float = 30.0
+    newtron_api_key: str = ""
+    newtron_base_url: str = "https://integrate.api.nvidia.com/v1"
+
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
     openai_timeout_seconds: float = 30.0

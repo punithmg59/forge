@@ -1,13 +1,16 @@
-"""Minimal OpenAI chat client for onboarding structuring."""
+"""Onboarding JSON helper. Uses the shared LLM provider contract."""
 
 from __future__ import annotations
 
 import json
 from typing import Any
 
-import httpx
-
-from app.core.config import settings
+from app.services.llm import (
+    ChatMessage,
+    CompletionRequest,
+    ProviderError,
+    get_llm_provider,
+)
 
 STRUCTURE_SYSTEM_PROMPT = """You structure founder onboarding notes for Forge.
 
@@ -36,55 +39,33 @@ async def complete_json(
     user_prompt: str,
     timeout_seconds: float | None = None,
 ) -> dict[str, Any]:
-    """Call OpenAI chat completions and return parsed JSON object."""
-    api_key = settings.openai_api_key.strip()
-    if not api_key:
-        raise LLMError("OpenAI API key is not configured")
-
-    timeout = timeout_seconds if timeout_seconds is not None else settings.openai_timeout_seconds
-    payload = {
-        "model": settings.openai_model,
-        "temperature": 0,
-        "response_format": {"type": "json_object"},
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {
-                "role": "user",
-                "content": (
+    """Complete via the configured LLM provider and return a parsed JSON object."""
+    provider = get_llm_provider()
+    request = CompletionRequest(
+        messages=[
+            ChatMessage(role="system", content=system_prompt),
+            ChatMessage(
+                role="user",
+                content=(
                     "FOUNDER_ONBOARDING_DATA_START\n"
                     f"{user_prompt}\n"
                     "FOUNDER_ONBOARDING_DATA_END\n"
                     "Structure only the data between the markers."
                 ),
-            },
+            ),
         ],
-    }
+        temperature=0,
+        timeout=timeout_seconds,
+        response_format="json_object",
+    )
+    try:
+        result = await provider.complete(request)
+    except ProviderError as exc:
+        raise LLMError(str(exc)) from exc
 
     try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                },
-                json=payload,
-            )
-    except httpx.TimeoutException as exc:
-        raise LLMError("LLM request timed out") from exc
-    except httpx.HTTPError as exc:
-        raise LLMError("LLM provider unavailable") from exc
-
-    if response.status_code == 429:
-        raise LLMError("LLM rate limit exceeded")
-    if response.status_code >= 400:
-        raise LLMError(f"LLM provider error ({response.status_code})")
-
-    try:
-        body = response.json()
-        content = body["choices"][0]["message"]["content"]
-        parsed = json.loads(content)
-    except (KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:
+        parsed = json.loads(result.text)
+    except json.JSONDecodeError as exc:
         raise LLMError("LLM returned malformed JSON") from exc
 
     if not isinstance(parsed, dict):
