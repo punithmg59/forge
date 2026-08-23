@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
+from app.models.company import Company
 from app.models.onboarding_draft import STATUS_DRAFT, OnboardingDraft
 from app.models.user import User
 
@@ -37,6 +38,46 @@ async def get_draft(db: AsyncSession, company_id: uuid.UUID) -> OnboardingDraft 
         select(OnboardingDraft).where(OnboardingDraft.company_id == company_id)
     )
     return result.scalar_one_or_none()
+
+
+def _initial_payload_from_company(company: Company | None) -> dict[str, Any]:
+    payload = copy.deepcopy(DEFAULT_PAYLOAD)
+    if company is None:
+        return payload
+    payload["company"] = {
+        "name": company.name or "",
+        "product_description": company.product_description or "",
+        "stage": company.stage or "mvp",
+    }
+    payload["customer"] = {
+        "target_customer": company.target_customer or "",
+    }
+    return payload
+
+
+async def get_or_create_draft(
+    db: AsyncSession,
+    *,
+    company_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> tuple[OnboardingDraft, bool]:
+    """Return the onboarding draft, creating one from company fields when missing."""
+    draft = await get_draft(db, company_id)
+    if draft is not None:
+        return draft, False
+
+    company = await db.get(Company, company_id)
+    draft = OnboardingDraft(
+        company_id=company_id,
+        created_by_user_id=user_id,
+        payload=_initial_payload_from_company(company),
+        current_step=1,
+        status=STATUS_DRAFT,
+    )
+    db.add(draft)
+    await db.commit()
+    await db.refresh(draft)
+    return draft, True
 
 
 async def patch_draft(

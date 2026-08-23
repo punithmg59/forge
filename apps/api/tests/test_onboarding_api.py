@@ -46,6 +46,50 @@ def _draft_url(company_id: str) -> str:
     return f"/api/v1/companies/{company_id}/onboarding/draft"
 
 
+def test_flat_payload_aliases_are_normalized() -> None:
+    client = _client()
+    _signup(client)
+    company = _create_company(client)
+    url = _draft_url(company["id"])
+
+    patched = client.patch(
+        url,
+        json={
+            "payload": {
+                "company_name": "Forge AI",
+                "mission": "Help solo founders build with AI leverage.",
+                "vision": "Give small teams operating leverage.",
+                "product_description": "AI operating system for solo founders.",
+                "target_customer": "Technical solo founders",
+                "stage": "mvp",
+            },
+            "current_step": 1,
+            "status": "draft",
+        },
+    )
+    assert patched.status_code == 200
+    payload = patched.json()["payload"]
+    assert payload["company"]["name"] == "Forge AI"
+    assert payload["company"]["product_description"] == "AI operating system for solo founders."
+    assert payload["customer"]["target_customer"] == "Technical solo founders"
+    assert payload["context"]["mission"] == "Help solo founders build with AI leverage."
+    assert payload["context"]["non_goals"] == "Give small teams operating leverage."
+
+
+def test_founder_can_get_draft_before_first_patch() -> None:
+    client = _client()
+    _signup(client)
+    company = _create_company(client)
+
+    fetched = client.get(_draft_url(company["id"]))
+    assert fetched.status_code == 200
+    body = fetched.json()
+    assert body["company_id"] == company["id"]
+    assert body["current_step"] == 1
+    assert body["status"] == "draft"
+    assert body["payload"]["company"]["name"] == "Draft Co"
+
+
 def test_founder_can_patch_and_get_draft() -> None:
     client = _client()
     _signup(client)

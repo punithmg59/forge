@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 # Embedding dimension configuration
-EMBEDDING_DIMENSION = 1536
+EMBEDDING_DIMENSION = 1024
 
 
 class Memory(Base, UUIDPrimaryKeyMixin, TimestampMixin):

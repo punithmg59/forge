@@ -28,14 +28,13 @@ router = APIRouter(
 async def get_onboarding_draft(
     company_id: uuid.UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _membership: Annotated[CompanyMember, Depends(require_company_access)],
+    membership: Annotated[CompanyMember, Depends(require_company_access)],
 ) -> OnboardingDraftPublic:
-    draft = await onboarding_service.get_draft(db, company_id)
-    if draft is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Onboarding draft not found",
-        )
+    draft, _created = await onboarding_service.get_or_create_draft(
+        db,
+        company_id=company_id,
+        user_id=membership.user_id,
+    )
     return OnboardingDraftPublic.model_validate(draft)
 
 
