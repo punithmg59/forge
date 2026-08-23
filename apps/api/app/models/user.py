@@ -15,6 +15,7 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     email: Mapped[str] = mapped_column(unique=True, nullable=False)
     name: Mapped[str | None] = mapped_column(nullable=True)
+    password_hash: Mapped[str | None] = mapped_column(nullable=True)
 
     # Constraints
     __table_args__ = (

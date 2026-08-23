@@ -1,0 +1,141 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #07070c;
+}
+
+html,
+body {
+  min-height: 100%;
+  background: var(--bg);
+  color: #fff;
+}
+
+.grid-bg {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+.orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(80px);
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.orb-purple {
+  background: #7c3aed;
+}
+
+.orb-blue {
+  background: #2563eb;
+}
+
+.nav-bar {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px);
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0.2rem 0.6rem;
+  font-size: 0.7rem;
+}
+
+.status-badge-online {
+  color: #34d399;
+  border-color: rgba(52, 211, 153, 0.3);
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.status-badge-checking {
+  color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.3);
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.forge-logo-text {
+  background: linear-gradient(180deg, #fff 0%, #c4b5fd 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.glass-card {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(12, 12, 20, 0.72);
+  border-radius: 1.25rem;
+  backdrop-filter: blur(18px);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.7s ease both;
+}
+
+.animate-delay-1 {
+  animation-delay: 0.05s;
+}
+
+.animate-delay-2 {
+  animation-delay: 0.15s;
+}
+
+.animate-delay-3 {
+  animation-delay: 0.25s;
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.forge-input {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0.7rem 0.85rem;
+  color: white;
+  outline: none;
+}
+
+.forge-input:focus {
+  border-color: rgba(167, 139, 250, 0.7);
+}
+
+.forge-button {
+  width: 100%;
+  border-radius: 0.75rem;
+  background: linear-gradient(180deg, #a78bfa 0%, #7c3aed 100%);
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  color: white;
+}
+
+.forge-button:disabled {
+  opacity: 0.6;
+}
+
+.forge-label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}

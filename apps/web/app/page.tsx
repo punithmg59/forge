@@ -59,6 +59,12 @@ export default function HomePage() {
         </div>
 
         <div className="flex items-center gap-3">
+          <a className="text-sm text-white/60 hover:text-white" href="/login">
+            Login
+          </a>
+          <a className="text-sm text-violet-300 hover:text-white" href="/signup">
+            Signup
+          </a>
           <span className="status-badge status-badge-online">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400" />
             v0.1.0-alpha
@@ -149,7 +155,7 @@ export default function HomePage() {
 
         {/* Footer hint */}
         <p className="animate-fade-in-up animate-delay-3 mt-8 text-xs text-white/20 font-mono tracking-wider">
-          DASHBOARD COMING SOON
+          AUTH READY · COMPANY OS FOUNDATION
         </p>
       </main>
     </div>

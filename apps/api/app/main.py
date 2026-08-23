@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.router import api_router
+
 app = FastAPI(
     title="Forge API",
     description="The backend service for Forge — The Operating System for Ambitious Solo Founders.",
@@ -17,6 +19,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(api_router, prefix="/api/v1")
 
 # ---------------------------------------------------------------------------
 # Health checks

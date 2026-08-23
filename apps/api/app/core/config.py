@@ -16,8 +16,12 @@ class Settings(BaseSettings):
     secret_key: str = "change-me"
     database_url: str = "postgresql+asyncpg://forge:forge@localhost:5432/forge"
     redis_url: str = "redis://localhost:6379/0"
+    session_cookie_name: str = "forge_session"
+    session_ttl_seconds: int = 60 * 60 * 24 * 14
 
     openai_api_key: str = ""
+    openai_model: str = "gpt-4o-mini"
+    openai_timeout_seconds: float = 30.0
     anthropic_api_key: str = ""
     github_client_id: str = ""
     github_client_secret: str = ""

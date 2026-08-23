@@ -6,6 +6,7 @@ This script is for development only and creates sample data for testing.
 import asyncio
 import uuid
 
+from app.core.security import hash_password
 from app.db.session import async_session_factory
 from app.models.agent_run import AgentRun
 from app.models.agent_task import AgentTask
@@ -39,6 +40,7 @@ async def seed_dev_data() -> None:
         user = User(
             email="founder@forge.dev",
             name="Forge Founder",
+            password_hash=hash_password("forge-dev-password"),
         )
         session.add(user)
         await session.flush()
