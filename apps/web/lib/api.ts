@@ -165,3 +165,142 @@ export function confirmOnboarding(companyId: string) {
     { method: "POST" },
   );
 }
+
+export type Objective = {
+  id: string;
+  company_id: string;
+  title: string;
+  description: string | null;
+  status: string;
+  priority: number;
+  target_value: string | null;
+  target_unit: string | null;
+  deadline: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ObjectiveListResponse = {
+  objectives: Objective[];
+  current_objective: Objective | null;
+};
+
+export type ProposedAction = {
+  type: "task" | "objective_change" | "none";
+  title: string;
+  description: string;
+};
+
+export type RecommendationSource = {
+  entity_type: string | null;
+  entity_id: string | null;
+  source_type: string | null;
+  source_reference: string | null;
+  title: string | null;
+};
+
+export type HeadAgentRecommendation = {
+  title: string;
+  recommendation: string;
+  rationale: string;
+  proposed_action: ProposedAction;
+  sources: RecommendationSource[];
+  confidence: "low" | "medium" | "high";
+};
+
+export type HeadAgentRecommendResponse = {
+  agent_task_id: string | null;
+  recommendation: HeadAgentRecommendation;
+};
+
+export type Approval = {
+  id: string;
+  company_id: string;
+  agent_task_id: string | null;
+  action_type: string;
+  description: string;
+  risk_level: string;
+  status: string;
+  requested_at: string;
+  resolved_at: string | null;
+  resolved_by: string | null;
+  objective_task_id: string | null;
+  recommendation: HeadAgentRecommendation | null;
+};
+
+export type ApprovalListResponse = {
+  approvals: Approval[];
+};
+
+export type FounderTask = {
+  id: string;
+  company_id: string;
+  objective_id: string;
+  title: string;
+  description: string | null;
+  capability: string;
+  status: string;
+  priority: string;
+  requires_approval: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type FounderTaskListResponse = {
+  tasks: FounderTask[];
+};
+
+export function listObjectives(companyId: string) {
+  return api<ObjectiveListResponse>(`/api/v1/companies/${companyId}/objectives`);
+}
+
+export function requestHeadAgentRecommendation(
+  companyId: string,
+  question?: string,
+) {
+  return api<HeadAgentRecommendResponse>(
+    `/api/v1/companies/${companyId}/head-agent/recommend`,
+    {
+      method: "POST",
+      body: JSON.stringify({ question: question || undefined }),
+    },
+  );
+}
+
+export function listApprovals(companyId: string) {
+  return api<ApprovalListResponse>(`/api/v1/companies/${companyId}/approvals`);
+}
+
+export function createApproval(companyId: string, agentTaskId: string) {
+  return api<Approval>(`/api/v1/companies/${companyId}/approvals`, {
+    method: "POST",
+    body: JSON.stringify({ agent_task_id: agentTaskId }),
+  });
+}
+
+export function approveApproval(companyId: string, approvalId: string) {
+  return api<Approval>(
+    `/api/v1/companies/${companyId}/approvals/${approvalId}/approve`,
+    { method: "POST" },
+  );
+}
+
+export function rejectApproval(companyId: string, approvalId: string) {
+  return api<Approval>(
+    `/api/v1/companies/${companyId}/approvals/${approvalId}/reject`,
+    { method: "POST" },
+  );
+}
+
+export function listFounderTasks(companyId: string) {
+  return api<FounderTaskListResponse>(
+    `/api/v1/companies/${companyId}/objective-tasks`,
+  );
+}
+
+export function safeApiMessage(error: unknown, fallback: string): string {
+  if (error instanceof ApiError) {
+    return error.message || fallback;
+  }
+  return fallback;
+}
