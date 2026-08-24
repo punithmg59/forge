@@ -35,10 +35,10 @@ from app.schemas.brain import (
     RetrievalMeta,
 )
 from app.services.company_service import get_membership
+from app.services.objective_service import STATUS_ACTIVE, select_current_objective
 from app.services.retrieval.scope import RetrievalScope
 from app.services.retrieval.structured import StructuredRetriever
 
-ACTIVE_STATUS = "active"
 RECENT_LIMIT = 25
 
 T = TypeVar("T")
@@ -71,16 +71,20 @@ class SqlStructuredRetriever(StructuredRetriever):
         profile = await self._one(
             select(CompanyBrainProfile).where(CompanyBrainProfile.company_id == company_id)
         )
-        objective = await self._one(
-            select(Objective)
-            .where(Objective.company_id == company_id, Objective.status == ACTIVE_STATUS)
-            .order_by(Objective.created_at.desc(), Objective.id.desc())
+        active_objectives = await self._list(
+            Objective,
+            Objective.company_id,
+            company_id,
+            status=STATUS_ACTIVE,
+            created_at=Objective.created_at,
+            id_col=Objective.id,
         )
+        objective = select_current_objective(active_objectives)
         constraints = await self._list(
             CompanyConstraint,
             CompanyConstraint.company_id,
             company_id,
-            status=ACTIVE_STATUS,
+            status=STATUS_ACTIVE,
             created_at=CompanyConstraint.created_at,
             id_col=CompanyConstraint.id,
         )

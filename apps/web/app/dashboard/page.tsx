@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { OperatingView } from "@/components/dashboard/OperatingView";
 import {
   ApiError,
   Company,
@@ -20,7 +21,6 @@ export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [draft, setDraft] = useState<OnboardingDraft | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -42,24 +42,11 @@ export default function DashboardPage() {
           companyList[0].id;
         setActiveCompanyId(selected);
 
-        let loadedDraft: OnboardingDraft | null = null;
-        try {
-          const existing = await getOnboardingDraft(selected);
-          loadedDraft = {
-            ...(existing as OnboardingDraft),
-            payload: normalizePayload(existing.payload),
-          };
-        } catch (err) {
-          if (err instanceof ApiError && err.status === 404) {
-            router.replace("/onboarding");
-            return;
-          }
-          if (err instanceof ApiError && err.status === 403) {
-            router.replace("/onboarding");
-            return;
-          }
-          throw err;
-        }
+        const existing = await getOnboardingDraft(selected);
+        const loadedDraft: OnboardingDraft = {
+          ...(existing as OnboardingDraft),
+          payload: normalizePayload(existing.payload),
+        };
 
         if (!isDraftConfirmed(loadedDraft)) {
           router.replace("/onboarding");
@@ -72,11 +59,14 @@ export default function DashboardPage() {
         setUser(currentUser);
         setCompanies(companyList);
         setActiveId(selected);
-        setDraft(loadedDraft);
         setReady(true);
       } catch (err) {
         if (err instanceof ApiError && err.status === 401) {
           router.replace("/login");
+          return;
+        }
+        if (err instanceof ApiError && (err.status === 403 || err.status === 404)) {
+          router.replace("/onboarding");
           return;
         }
         router.replace("/login");
@@ -104,10 +94,6 @@ export default function DashboardPage() {
         return;
       }
       setActiveId(companyId);
-      setDraft({
-        ...(existing as OnboardingDraft),
-        payload: normalizePayload(existing.payload),
-      });
     } catch (err) {
       if (err instanceof ApiError && (err.status === 404 || err.status === 403)) {
         router.replace("/onboarding");
@@ -119,15 +105,13 @@ export default function DashboardPage() {
     }
   }
 
-  if (!ready || !user || !active || !draft) {
+  if (!ready || !user || !active || !activeId) {
     return (
       <div className="grid-bg flex min-h-screen items-center justify-center text-sm text-white/40">
         Loading...
       </div>
     );
   }
-
-  const payload = draft.payload;
 
   return (
     <div className="grid-bg relative min-h-screen overflow-hidden">
@@ -158,40 +142,15 @@ export default function DashboardPage() {
           </button>
         </div>
       </nav>
-      <main className="relative z-10 mx-auto max-w-3xl px-6 py-16">
-        <p className="mb-2 text-xs tracking-widest uppercase text-white/40">Dashboard</p>
-        <h1 className="mb-3 text-3xl font-semibold">
-          {payload.company.name || active.name}
-        </h1>
-        <p className="mb-8 text-white/50">
-          Signed in as {user.name ?? user.email}. Company Brain initialized.
+      <main className="relative z-10 mx-auto max-w-3xl px-6 py-10">
+        <p className="mb-2 text-xs tracking-widest uppercase text-white/40">Operating View</p>
+        <h1 className="mb-2 text-3xl font-semibold">{active.name}</h1>
+        <p className="mb-8 text-sm text-white/50">
+          Signed in as {user.name ?? user.email}. Review your objective, Forge recommendation,
+          approvals, and tasks.
         </p>
-        <div className="glass-card space-y-4 p-6">
-          <Summary label="Brain status" value="Initialized" />
-          <Summary
-            label="Product"
-            value={payload.company.product_description || active.description || "Not set"}
-          />
-          <Summary label="Stage" value={payload.company.stage || active.stage || "Not set"} />
-          <Summary
-            label="Current objective"
-            value={payload.current_situation.objective || "Not set"}
-          />
-          <Summary
-            label="Bottleneck"
-            value={payload.current_situation.bottleneck || "Not set"}
-          />
-        </div>
+        <OperatingView companyId={activeId} />
       </main>
-    </div>
-  );
-}
-
-function Summary({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="forge-label">{label}</p>
-      <p className="text-sm text-white/70">{value}</p>
     </div>
   );
 }

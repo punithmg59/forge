@@ -1,0 +1,61 @@
+import type { Approval, HeadAgentRecommendation, Objective } from "./api";
+
+export function filterPendingApprovals(approvals: Approval[]): Approval[] {
+  return approvals.filter((approval) => approval.status === "pending");
+}
+
+export function hasPendingApprovalForAgentTask(
+  approvals: Approval[],
+  agentTaskId: string | null,
+): boolean {
+  if (!agentTaskId) {
+    return false;
+  }
+  return approvals.some(
+    (approval) =>
+      approval.agent_task_id === agentTaskId && approval.status === "pending",
+  );
+}
+
+export function isActionableRecommendation(
+  recommendation: HeadAgentRecommendation,
+): boolean {
+  return recommendation.proposed_action.type !== "none";
+}
+
+export function formatObjectiveMetric(objective: Objective): string | null {
+  if (objective.target_value && objective.target_unit) {
+    return `${objective.target_value} ${objective.target_unit}`;
+  }
+  if (objective.target_value) {
+    return objective.target_value;
+  }
+  return null;
+}
+
+export function formatActionType(actionType: string): string {
+  return actionType.replaceAll("_", " ");
+}
+
+export function formatTimestamp(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return date.toLocaleString();
+}
+
+export function objectiveTitleById(
+  objectives: Objective[],
+  objectiveId: string,
+): string | null {
+  return objectives.find((objective) => objective.id === objectiveId)?.title ?? null;
+}
+
+export const OPERATING_ERRORS = {
+  objective: "Unable to load the current objective.",
+  recommendation: "Forge could not generate a recommendation. Please try again.",
+  approvals: "Unable to load pending approvals.",
+  tasks: "Unable to load founder tasks.",
+  approvalAction: "Approval could not be completed.",
+} as const;
