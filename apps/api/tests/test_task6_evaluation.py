@@ -482,7 +482,7 @@ async def test_missing_customer_evidence_produces_conservative_recommendation() 
     )
     assert result.recommendation.sources == []
     assert result.recommendation.confidence == "low"
-    system = provider.requests[0].messages[0].content
+    system = provider.requests[-1].messages[0].content
     assert "Do not invent customer problems without evidence." in system
     assert "If information is missing, say so and lower confidence." in system
 

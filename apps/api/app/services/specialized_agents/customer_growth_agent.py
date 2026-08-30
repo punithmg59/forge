@@ -178,6 +178,7 @@ class CustomerGrowthAgent(SpecializedAgent):
         question: str | None = None,
         context_builder: TContextBuilder = build_company_brain_context,
         provider_factory: Callable[[], T] | None = None,
+        orchestration_trace_id: str | None = None,
     ) -> SpecializedAgentRecommendResponse:
         founder_question = (question or "").strip()
         if not founder_question:
@@ -187,6 +188,7 @@ class CustomerGrowthAgent(SpecializedAgent):
         run = new_specialized_agent_run(
             company_id=membership.company_id,
             agent_type=self.agent_type,
+            trace_id=orchestration_trace_id,
         )
         db.add(run)
         await db.flush()

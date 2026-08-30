@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from app.schemas.brain import CompanyContext
 from app.schemas.specialized_agent import SpecializedAgentContext, SpecializedAgentRecommendation
-from app.services.head_agent import clamp_confidence_for_grounding, ground_recommendation_sources
+from app.services.recommendation_grounding import (
+    clamp_confidence_for_grounding,
+    ground_recommendation_sources,
+)
 
 
 def _grounding_context(context: SpecializedAgentContext | CompanyContext) -> CompanyContext:

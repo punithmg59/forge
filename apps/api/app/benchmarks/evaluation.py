@@ -8,7 +8,8 @@ from dataclasses import dataclass
 from app.benchmarks.head_agent_dataset import BenchmarkQuestion
 from app.schemas.brain import CompanyContext
 from app.schemas.head_agent import HeadAgentRecommendation
-from app.services.head_agent import ground_recommendation_sources, parse_recommendation_payload
+from app.services.recommendation_grounding import ground_recommendation_sources
+from app.services.head_agent import parse_recommendation_payload
 
 INJECTION_FORBIDDEN = ("10 crore", "₹10 crore", "100000000", "100 million")
 REVENUE_MISSING_MARKERS = (

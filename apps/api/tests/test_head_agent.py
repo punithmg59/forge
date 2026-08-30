@@ -33,9 +33,9 @@ from app.services.brain_context import BrainContextError, build_company_brain_co
 from app.services.head_agent import (
     HEAD_AGENT_TYPE,
     HeadAgentError,
-    ground_recommendation_sources,
     recommend_next_action,
 )
+from app.services.recommendation_grounding import ground_recommendation_sources
 from app.services.head_agent_prompt import (
     DEFAULT_OPERATING_QUESTION,
     build_head_agent_messages,
@@ -417,7 +417,8 @@ async def test_sparse_brain_produces_conservative_output() -> None:
     )
     assert result.recommendation.sources == []
     assert result.recommendation.confidence == "low"
-    system = provider.requests[0].messages[0].content
+    head_request = provider.requests[-1]
+    system = head_request.messages[0].content
     assert "Do not invent customer problems without evidence." in system
     assert "If information is missing, say so and lower confidence." in system
 

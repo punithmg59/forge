@@ -185,3 +185,14 @@ def classify_deterministic(question: str) -> DeterministicRoutingResult:
         return DeterministicRoutingResult(status=DeterministicRoutingStatus.WEAK_MATCH)
 
     return DeterministicRoutingResult(status=DeterministicRoutingStatus.NO_MATCH)
+
+
+def detect_mixed_domain_strong_match(question: str) -> bool:
+    """True when both customer/growth and product have strong deterministic signals."""
+    text = _normalize(question)
+    scores = _score_intents(text)
+    domain_scores = _domain_scores(scores)
+    return (
+        _is_strong_domain_match(domain_scores[AgentDomain.CUSTOMER_GROWTH])
+        and _is_strong_domain_match(domain_scores[AgentDomain.PRODUCT])
+    )
