@@ -46,6 +46,17 @@ class NewtronProvider(LLMProvider):
         self._embedding_model = embedding_model
         self._timeout_seconds = timeout_seconds
         self._base_url = base_url.rstrip("/")
+        self._http_client: httpx.AsyncClient | None = None
+
+    async def aclose(self) -> None:
+        if self._http_client is not None:
+            await self._http_client.aclose()
+            self._http_client = None
+
+    def _http(self) -> httpx.AsyncClient:
+        if self._http_client is None or self._http_client.is_closed:
+            self._http_client = httpx.AsyncClient()
+        return self._http_client
 
     @classmethod
     def from_settings(cls, config: Settings) -> NewtronProvider:
@@ -142,8 +153,12 @@ class NewtronProvider(LLMProvider):
         last_response: httpx.Response | None = None
         for attempt in range(2):
             try:
-                async with httpx.AsyncClient(timeout=timeout) as client:
-                    response = await client.post(url, headers=headers, json=payload)
+                response = await self._http().post(
+                    url,
+                    headers=headers,
+                    json=payload,
+                    timeout=timeout,
+                )
             except httpx.TimeoutException as exc:
                 if attempt == 0:
                     continue

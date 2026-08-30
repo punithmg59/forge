@@ -6,6 +6,7 @@ import uuid
 from typing import TYPE_CHECKING
 
 from sqlalchemy import ForeignKey, Index
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -37,6 +38,13 @@ class ObjectiveTask(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     requires_approval: Mapped[bool] = mapped_column(nullable=False)
     started_at: Mapped[str | None] = mapped_column(nullable=True)
     completed_at: Mapped[str | None] = mapped_column(nullable=True)
+    blocked_reason: Mapped[str | None] = mapped_column(nullable=True)
+    result_summary: Mapped[str | None] = mapped_column(nullable=True)
+    result_metrics: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    result_notes: Mapped[str | None] = mapped_column(nullable=True)
+    completed_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
 
     # Constraints
     __table_args__ = (

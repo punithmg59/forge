@@ -11,11 +11,12 @@ from app.db.dependencies import get_db
 from app.models.company_member import CompanyMember
 from app.models.user import User
 from app.schemas.approval import ApprovalCreateRequest, ApprovalListResponse, ApprovalPublic
-from app.services.approval_presenter import approval_to_public
+from app.services.approval_presenter import approval_to_public, approvals_to_public
 from app.services.approval_service import (
     ApprovalError,
     approve_approval,
     create_approval,
+    create_learning_approval,
     get_approval,
     list_approvals,
     reject_approval,
@@ -36,11 +37,18 @@ async def post_approval(
     _membership: Annotated[CompanyMember, Depends(require_company_role(*COMPANY_MANAGE_ROLES))],
 ) -> ApprovalPublic:
     try:
-        approval = await create_approval(
-            db,
-            company_id=company_id,
-            agent_task_id=payload.agent_task_id,
-        )
+        if payload.learning_id is not None:
+            approval = await create_learning_approval(
+                db,
+                company_id=company_id,
+                learning_id=payload.learning_id,
+            )
+        else:
+            approval = await create_approval(
+                db,
+                company_id=company_id,
+                agent_task_id=payload.agent_task_id,
+            )
     except ApprovalError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.detail) from None
     return await approval_to_public(db, approval)
@@ -54,7 +62,7 @@ async def get_approvals(
 ) -> ApprovalListResponse:
     approvals = await list_approvals(db, company_id=company_id)
     return ApprovalListResponse(
-        approvals=[await approval_to_public(db, approval) for approval in approvals]
+        approvals=await approvals_to_public(db, approvals)
     )
 
 

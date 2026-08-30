@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import logging
+import time
 import uuid
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
@@ -25,6 +27,7 @@ from app.services.brain_context import BrainContextError, build_company_brain_co
 from app.services.head_agent_prompt import (
     DEFAULT_OPERATING_QUESTION,
     build_head_agent_completion_request,
+    estimate_head_agent_prompt_chars,
     resolve_founder_question,
 )
 from app.services.llm import (
@@ -40,6 +43,8 @@ from app.services.llm import (
 )
 
 T = TypeVar("T", bound=LLMProvider)
+
+logger = logging.getLogger(__name__)
 
 HEAD_AGENT_TYPE = "head_agent"
 HEAD_AGENT_TASK_TYPE = "recommendation"
@@ -168,6 +173,36 @@ def _map_provider_error(exc: ProviderError) -> HeadAgentError:
     return HeadAgentError("LLM provider error", 502)
 
 
+def _log_head_agent_perf(
+    trace_id: str,
+    *,
+    retrieval_ms: float,
+    prompt_build_ms: float,
+    llm_ms: float,
+    parsing_ms: float,
+    persistence_ms: float,
+    total_ms: float,
+    prompt_chars: int = 0,
+    output_chars: int = 0,
+    vector_used: bool = False,
+) -> None:
+    logger.info(
+        "head_agent_perf trace_id=%s retrieval_ms=%.1f prompt_build_ms=%.1f "
+        "llm_ms=%.1f parsing_ms=%.1f persistence_ms=%.1f total_ms=%.1f "
+        "prompt_chars=%d output_chars=%d vector_used=%s",
+        trace_id,
+        retrieval_ms,
+        prompt_build_ms,
+        llm_ms,
+        parsing_ms,
+        persistence_ms,
+        total_ms,
+        prompt_chars,
+        output_chars,
+        vector_used,
+    )
+
+
 async def recommend_next_action(
     db: AsyncSession,
     *,
@@ -180,6 +215,7 @@ async def recommend_next_action(
 ) -> HeadAgentRecommendResponse:
     """Build CompanyContext, complete via LLMProvider, return a grounded proposal."""
     retrieval_query = (question or "").strip() or DEFAULT_OPERATING_QUESTION
+    t0 = time.perf_counter()
     run = AgentRun(
         company_id=membership.company_id,
         agent_type=HEAD_AGENT_TYPE,
@@ -196,6 +232,8 @@ async def recommend_next_action(
             membership=membership,
             query=retrieval_query,
         )
+        t1 = time.perf_counter()
+        vector_used = bool(context.meta and context.meta.vector_used)
         if context.objective is not None and context.objective.id is not None:
             run.objective_id = context.objective.id
 
@@ -211,6 +249,18 @@ async def recommend_next_action(
                 recommendation=recommendation,
             )
             await db.commit()
+            t7 = time.perf_counter()
+            total_ms = (t7 - t0) * 1000
+            _log_head_agent_perf(
+                run.trace_id,
+                retrieval_ms=(t1 - t0) * 1000,
+                prompt_build_ms=0.0,
+                llm_ms=0.0,
+                parsing_ms=0.0,
+                persistence_ms=(t7 - t1) * 1000,
+                total_ms=total_ms,
+                vector_used=vector_used,
+            )
             return HeadAgentRecommendResponse(
                 agent_task_id=agent_task.id,
                 recommendation=recommendation,
@@ -223,10 +273,17 @@ async def recommend_next_action(
             question=founder_question,
             context=context,
         )
+        t2 = time.perf_counter()
+        prompt_chars = estimate_head_agent_prompt_chars(
+            question=founder_question,
+            context=context,
+        )
+        t3 = time.perf_counter()
         try:
             result = await provider.complete(request)
         except ProviderError as exc:
             raise _map_provider_error(exc) from exc
+        t4 = time.perf_counter()
 
         parsed = parse_recommendation_payload(result.text)
         grounded_sources = ground_recommendation_sources(parsed.sources, context)
@@ -239,6 +296,7 @@ async def recommend_next_action(
                 ),
             }
         )
+        t5 = time.perf_counter()
         run.model_name = result.model
         run.status = "completed"
         run.completed_at = _utcnow_iso()
@@ -250,6 +308,20 @@ async def recommend_next_action(
             recommendation=recommendation,
         )
         await db.commit()
+        t7 = time.perf_counter()
+        output_chars = len(result.text)
+        _log_head_agent_perf(
+            run.trace_id,
+            retrieval_ms=(t1 - t0) * 1000,
+            prompt_build_ms=(t3 - t2) * 1000,
+            llm_ms=(t4 - t3) * 1000,
+            parsing_ms=(t5 - t4) * 1000,
+            persistence_ms=(t7 - t5) * 1000,
+            total_ms=(t7 - t0) * 1000,
+            prompt_chars=prompt_chars,
+            output_chars=output_chars,
+            vector_used=vector_used,
+        )
         return HeadAgentRecommendResponse(
             agent_task_id=agent_task.id,
             recommendation=recommendation,

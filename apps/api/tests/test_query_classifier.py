@@ -83,8 +83,22 @@ def test_historical_question_uses_safe_plan() -> None:
     assert result.vector_needed is True
 
 
-def test_ambiguous_question_falls_back_to_broad() -> None:
+def test_operating_question_uses_structured_plan_without_vector() -> None:
     result = classify_query("What should we do next?")
+    assert result.intent is QueryIntent.OPERATING
+    assert StructuredSection.FACTS in result.sections
+    assert StructuredSection.BELIEFS in result.sections
+    assert result.vector_needed is False
+
+
+def test_operating_customer_growth_question() -> None:
+    result = classify_query("What should we do next to get more customers?")
+    assert result.intent is QueryIntent.OPERATING
+    assert result.vector_needed is False
+
+
+def test_ambiguous_question_falls_back_to_broad() -> None:
+    result = classify_query("Tell me something interesting.")
     assert result.intent is QueryIntent.BROAD
     assert result.sections
     assert StructuredSection.FACTS in result.sections

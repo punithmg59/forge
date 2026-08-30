@@ -57,13 +57,26 @@ class _FakeAsyncClient:
         _FakeAsyncClient.last["init_args"] = args
         _FakeAsyncClient.last["init_kwargs"] = kwargs
 
+    @property
+    def is_closed(self) -> bool:
+        return False
+
+    async def aclose(self) -> None:
+        return None
+
     async def __aenter__(self) -> _FakeAsyncClient:
         return self
 
     async def __aexit__(self, *_exc: object) -> None:
         return None
 
-    async def post(self, url: str, headers: dict[str, str] | None = None, json: Any = None) -> _FakeResponse:
+    async def post(
+        self,
+        url: str,
+        headers: dict[str, str] | None = None,
+        json: Any = None,
+        **kwargs: Any,
+    ) -> _FakeResponse:
         _FakeAsyncClient.last["url"] = url
         _FakeAsyncClient.last["headers"] = headers
         _FakeAsyncClient.last["json"] = json
@@ -270,7 +283,13 @@ async def test_asymmetric_embedding_models_send_input_type() -> None:
 @pytest.mark.asyncio
 async def test_timeout_becomes_normalized_error() -> None:
     class TimeoutClient(_FakeAsyncClient):
-        async def post(self, url: str, headers: dict[str, str] | None = None, json: Any = None) -> _FakeResponse:
+        async def post(
+            self,
+            url: str,
+            headers: dict[str, str] | None = None,
+            json: Any = None,
+            **kwargs: Any,
+        ) -> _FakeResponse:
             raise httpx.TimeoutException("slow")
 
     provider = _provider(timeout_seconds=1.0)
@@ -284,7 +303,13 @@ async def test_timeout_becomes_normalized_error() -> None:
 @pytest.mark.asyncio
 async def test_connect_failure_becomes_unavailable() -> None:
     class DownClient(_FakeAsyncClient):
-        async def post(self, url: str, headers: dict[str, str] | None = None, json: Any = None) -> _FakeResponse:
+        async def post(
+            self,
+            url: str,
+            headers: dict[str, str] | None = None,
+            json: Any = None,
+            **kwargs: Any,
+        ) -> _FakeResponse:
             raise httpx.ConnectError("offline")
 
     provider = _provider()

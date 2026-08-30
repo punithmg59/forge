@@ -25,6 +25,9 @@ class Approval(Base, UUIDPrimaryKeyMixin):
     agent_task_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("agent_tasks.id", ondelete="SET NULL"), nullable=True
     )
+    learning_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("learnings.id", ondelete="SET NULL"), nullable=True
+    )
     action_type: Mapped[str] = mapped_column(nullable=False)
     description: Mapped[str] = mapped_column(nullable=False)
     risk_level: Mapped[str] = mapped_column(nullable=False)
@@ -39,6 +42,7 @@ class Approval(Base, UUIDPrimaryKeyMixin):
     __table_args__ = (
         Index("ix_approvals_company_id", "company_id"),
         Index("ix_approvals_agent_task_id", "agent_task_id"),
+        Index("ix_approvals_learning_id", "learning_id"),
         Index("ix_approvals_company_id_status", "company_id", "status"),
     )
 

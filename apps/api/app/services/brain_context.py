@@ -55,6 +55,9 @@ async def build_company_brain_context(
     except RetrievalAccessError as exc:
         raise BrainContextError("Not allowed to access this company", 403) from exc
     except VectorRetrievalError as exc:
-        raise BrainContextError("Brain context retrieval failed", 502) from exc
+        if not classification.vector_needed:
+            raise BrainContextError("Brain context retrieval failed", 502) from exc
+        vector_hits: list = []
+        return assemble_context(structured, vector_hits, classification)
     except SQLAlchemyError as exc:
         raise BrainContextError("Brain context retrieval failed", 500) from exc

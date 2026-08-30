@@ -466,8 +466,8 @@ async def test_company_stage_is_available_in_head_agent_prompt() -> None:
         context=_rich_context(stage="mvp"),
     )
     user_content = messages[1].content
-    assert '"stage": "mvp"' in user_content
-    assert "Never invent company facts" in messages[0].content
+    assert '"stage":"mvp"' in user_content
+    assert "Never invent facts" in messages[0].content
 
 
 @pytest.mark.asyncio
@@ -483,8 +483,8 @@ async def test_missing_customer_evidence_produces_conservative_recommendation() 
     assert result.recommendation.sources == []
     assert result.recommendation.confidence == "low"
     system = provider.requests[0].messages[0].content
-    assert "If there is no customer evidence, do not invent a customer problem." in system
-    assert "If information is missing, say so clearly" in system
+    assert "Do not invent customer problems without evidence." in system
+    assert "If information is missing, say so and lower confidence." in system
 
 
 def test_belief_vs_fact_distinction_in_prompt() -> None:
@@ -1059,8 +1059,8 @@ def test_empty_sections_remain_empty_in_context() -> None:
     )
     messages = build_head_agent_messages(question="What do we know?", context=context)
     user = messages[1].content
-    assert '"facts": []' in user
-    assert '"beliefs": []' in user
+    assert '"facts":[]' in user
+    assert '"beliefs":[]' in user
 
 
 # ---------------------------------------------------------------------------

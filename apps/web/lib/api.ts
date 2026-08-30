@@ -213,10 +213,56 @@ export type HeadAgentRecommendResponse = {
   recommendation: HeadAgentRecommendation;
 };
 
+export type LearningProposal = {
+  id: string;
+  company_id: string;
+  evidence_id: string | null;
+  objective_id: string | null;
+  statement: string;
+  evidence_summary: string | null;
+  confidence: number | null;
+  status: string;
+  source_evidence_ids: string[];
+};
+
+export type LearningProvenance = {
+  evidence_id: string | null;
+  evidence_title: string | null;
+  evidence_content: string | null;
+  evidence_observed_at: string | null;
+  objective_task_id: string | null;
+  objective_task_title: string | null;
+  objective_id: string | null;
+  objective_title: string | null;
+};
+
+export type CompanyLearning = {
+  id: string;
+  company_id: string;
+  evidence_id: string | null;
+  objective_id: string | null;
+  statement: string;
+  evidence_summary: string | null;
+  confidence: number | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  corrected_by: string | null;
+  corrected_at: string | null;
+  correction_reason: string | null;
+  provenance: LearningProvenance | null;
+  approval_status: string | null;
+};
+
+export type LearningListResponse = {
+  learnings: CompanyLearning[];
+};
+
 export type Approval = {
   id: string;
   company_id: string;
   agent_task_id: string | null;
+  learning_id: string | null;
   action_type: string;
   description: string;
   risk_level: string;
@@ -226,6 +272,7 @@ export type Approval = {
   resolved_by: string | null;
   objective_task_id: string | null;
   recommendation: HeadAgentRecommendation | null;
+  learning_proposal: LearningProposal | null;
 };
 
 export type ApprovalListResponse = {
@@ -242,12 +289,112 @@ export type FounderTask = {
   status: string;
   priority: string;
   requires_approval: boolean;
+  started_at?: string | null;
+  blocked_reason?: string | null;
+  result_summary?: string | null;
+  result_metrics?: Record<string, number> | null;
+  result_notes?: string | null;
+  completed_by?: string | null;
+  completed_at?: string | null;
   created_at: string;
   updated_at: string;
 };
 
 export type FounderTaskListResponse = {
   tasks: FounderTask[];
+};
+
+export type ObjectiveTaskStatus =
+  | "pending"
+  | "in_progress"
+  | "blocked"
+  | "completed";
+
+export type ObjectiveTaskPriority = "low" | "medium" | "high";
+
+export type ObjectiveTaskObjectiveSummary = {
+  id: string;
+  title: string;
+  status: string;
+};
+
+export type ObjectiveTaskResult = {
+  summary: string;
+  metrics: Record<string, number> | null;
+  notes: string | null;
+  completed_by: string | null;
+  completed_at: string | null;
+};
+
+export type ObjectiveTaskProvenance = {
+  agent_task_id: string | null;
+  agent_run_id: string | null;
+  approval_id: string | null;
+  objective_id: string | null;
+};
+
+export type ObjectiveTaskEvidence = {
+  id: string;
+  type: string;
+  title: string;
+  content: string;
+  source_type: string;
+  source_reference: string | null;
+  observed_at: string | null;
+  created_at: string;
+};
+
+export type ObjectiveTaskLearning = {
+  id: string;
+  statement: string;
+  evidence_summary: string | null;
+  confidence: number | null;
+  status: string;
+  evidence_id: string | null;
+  objective_id: string | null;
+};
+
+export type ObjectiveTaskApprovalContext = {
+  status: string;
+  description: string;
+  action_type: string;
+  requested_at: string;
+  resolved_at: string | null;
+};
+
+/** Full task detail from GET /objective-tasks/{id} */
+export type ObjectiveTaskDetail = FounderTask & {
+  objective: ObjectiveTaskObjectiveSummary | null;
+  result: ObjectiveTaskResult | null;
+  provenance: ObjectiveTaskProvenance | null;
+  evidence: ObjectiveTaskEvidence[];
+  learnings: ObjectiveTaskLearning[];
+  recommendation: HeadAgentRecommendation | null;
+  recommendation_question: string | null;
+  approval_context: ObjectiveTaskApprovalContext | null;
+};
+
+/** Mutation responses from PATCH task / PATCH status / POST complete */
+export type ObjectiveTaskPublic = FounderTask;
+
+export type ObjectiveTaskUpdatePayload = {
+  title?: string;
+  description?: string | null;
+  priority?: ObjectiveTaskPriority;
+};
+
+export type ObjectiveTaskStatusPayload = {
+  status: ObjectiveTaskStatus;
+  blocked_reason?: string;
+  result_summary?: string;
+  result_metrics?: Record<string, number>;
+  result_notes?: string;
+};
+
+export type ObjectiveTaskCompletePayload = {
+  result_summary: string;
+  result_metrics?: Record<string, number>;
+  result_notes?: string;
 };
 
 export function listObjectives(companyId: string) {
@@ -271,10 +418,13 @@ export function listApprovals(companyId: string) {
   return api<ApprovalListResponse>(`/api/v1/companies/${companyId}/approvals`);
 }
 
-export function createApproval(companyId: string, agentTaskId: string) {
+export function createApproval(
+  companyId: string,
+  payload: { agent_task_id?: string; learning_id?: string },
+) {
   return api<Approval>(`/api/v1/companies/${companyId}/approvals`, {
     method: "POST",
-    body: JSON.stringify({ agent_task_id: agentTaskId }),
+    body: JSON.stringify(payload),
   });
 }
 
@@ -295,6 +445,66 @@ export function rejectApproval(companyId: string, approvalId: string) {
 export function listFounderTasks(companyId: string) {
   return api<FounderTaskListResponse>(
     `/api/v1/companies/${companyId}/objective-tasks`,
+  );
+}
+
+function objectiveTaskPath(companyId: string, taskId: string, suffix?: string) {
+  const base = `/api/v1/companies/${companyId}/objective-tasks/${taskId}`;
+  return suffix ? `${base}/${suffix}` : base;
+}
+
+export function getObjectiveTaskDetail(companyId: string, taskId: string) {
+  return api<ObjectiveTaskDetail>(objectiveTaskPath(companyId, taskId));
+}
+
+export function updateObjectiveTask(
+  companyId: string,
+  taskId: string,
+  payload: ObjectiveTaskUpdatePayload,
+) {
+  return api<ObjectiveTaskPublic>(objectiveTaskPath(companyId, taskId), {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function transitionObjectiveTaskStatus(
+  companyId: string,
+  taskId: string,
+  payload: ObjectiveTaskStatusPayload,
+) {
+  return api<ObjectiveTaskPublic>(objectiveTaskPath(companyId, taskId, "status"), {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function completeObjectiveTask(
+  companyId: string,
+  taskId: string,
+  payload: ObjectiveTaskCompletePayload,
+) {
+  return api<ObjectiveTaskPublic>(objectiveTaskPath(companyId, taskId, "complete"), {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function listLearnings(companyId: string) {
+  return api<LearningListResponse>(`/api/v1/companies/${companyId}/learnings`);
+}
+
+export function correctLearning(
+  companyId: string,
+  learningId: string,
+  reason: string,
+) {
+  return api<CompanyLearning>(
+    `/api/v1/companies/${companyId}/learnings/${learningId}/correct`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ reason }),
+    },
   );
 }
 
