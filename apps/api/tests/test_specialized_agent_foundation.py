@@ -43,15 +43,11 @@ from app.services.specialized_agents import (
     parse_specialized_recommendation_payload,
     registered_agent_types,
 )
-from app.schemas.specialized_agent_types import (
-    CUSTOMER_GROWTH_INTENTS,
-    PRODUCT_INTENTS,
-    SpecializedAgentType,
-)
+from app.schemas.specialized_agent_types import SpecializedAgentType
 from app.services.specialized_agents.customer_growth_agent import CustomerGrowthAgentError
+from app.services.specialized_agents.product_agent import ProductAgentError
 from app.services.specialized_agents.errors import (
     SpecializedAgentContextError,
-    SpecializedAgentReasoningNotImplemented,
 )
 
 
@@ -119,10 +115,13 @@ def test_domain_intents_are_centralized() -> None:
     agent = CustomerGrowthAgent()
     assert "customer_acquisition" in agent.supported_intents
     assert "marketing" in agent.supported_intents
-    assert ProductAgent().supported_intents == PRODUCT_INTENTS
+    product = ProductAgent()
+    assert "product_roadmap" in product.supported_intents
+    assert "ux" in product.supported_intents
+    assert "product_features" in product.supported_intents
 
 
-def test_registry_lookup_returns_stubs() -> None:
+def test_registry_lookup_returns_agents() -> None:
     growth = get_specialized_agent("customer_growth")
     product = get_specialized_agent(SpecializedAgentType.PRODUCT)
     assert growth.agent_type == SpecializedAgentType.CUSTOMER_GROWTH
@@ -139,11 +138,15 @@ def test_registry_unknown_agent_raises() -> None:
     assert "finance" in exc_info.value.detail
 
 
-def test_stub_contract_metadata() -> None:
+def test_agent_contract_metadata() -> None:
     agent = CustomerGrowthAgent()
     assert agent.display_name == "Customer & Growth"
     assert agent.domain == AgentDomain.CUSTOMER_GROWTH
     assert "customer discovery" in agent.description.lower()
+    product = ProductAgent()
+    assert product.display_name == "Product"
+    assert product.domain == AgentDomain.PRODUCT
+    assert "roadmap" in product.description.lower()
 
 
 def test_context_contract_maps_company_context() -> None:
@@ -255,7 +258,7 @@ async def test_tenant_isolation_context_scope(
 
 
 @pytest.mark.asyncio
-async def test_stub_recommend_does_not_call_llm(
+async def test_product_recommend_requires_non_empty_question(
     async_session_factory: async_sessionmaker[AsyncSession],
 ) -> None:
     async with async_session_factory() as session:
@@ -263,17 +266,17 @@ async def test_stub_recommend_does_not_call_llm(
         agent = get_specialized_agent("product")
         provider_factory = MagicMock()
 
-        with pytest.raises(SpecializedAgentReasoningNotImplemented):
+        with pytest.raises(ProductAgentError):
             await agent.recommend(
                 session,
                 membership=membership,
-                question="What should we build?",
+                question="",
                 provider_factory=provider_factory,
             )
         provider_factory.assert_not_called()
 
 
-def test_stub_build_prompt_not_implemented() -> None:
+def test_product_build_prompt_returns_completion_request() -> None:
     agent = ProductAgent()
     scope = RetrievalScope(company_id=uuid.uuid4(), user_id=uuid.uuid4(), role="founder")
     context = build_specialized_agent_context(
@@ -281,8 +284,9 @@ def test_stub_build_prompt_not_implemented() -> None:
         domain=AgentDomain.PRODUCT,
         company_context=_company_context(company_id=scope.company_id),
     )
-    with pytest.raises(SpecializedAgentReasoningNotImplemented):
-        agent.build_prompt(question="roadmap?", context=context)
+    request = agent.build_prompt(question="roadmap?", context=context)
+    assert request.response_format == "json_object"
+    assert len(request.messages) == 2
 
 
 def test_structured_output_validation() -> None:

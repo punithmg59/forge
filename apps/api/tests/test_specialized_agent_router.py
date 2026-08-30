@@ -9,8 +9,10 @@ from pathlib import Path
 from unittest.mock import AsyncMock
 
 import pytest
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.models.agent_run import AgentRun
 from app.models.company import Company
 from app.models.company_member import CompanyMember
 from app.models.user import User
@@ -18,7 +20,7 @@ from app.schemas.brain import CompanyContext, ContextCompany
 from app.schemas.specialized_agent_types import AgentDomain, SpecializedAgentType
 from app.schemas.specialized_routing_types import RoutingIntent
 from app.services.llm import CompletionResult, LLMProvider
-from app.services.specialized_agents import SpecializedAgentReasoningNotImplemented, get_specialized_agent
+from app.services.specialized_agents import get_specialized_agent
 from app.services.specialized_agents.routing import (
     classify_deterministic,
     classify_with_llm,
@@ -300,16 +302,18 @@ async def test_route_does_not_execute_specialist_reasoning(
         async def _builder(db, membership=membership, query=""):  # noqa: ARG001
             return _company_context(company.id, company.name)
 
+        runs_before = await session.scalar(select(func.count()).select_from(AgentRun))
+
         handoff = await route_specialized_agent(
             session,
             membership=membership,
             question="How do we improve customer acquisition?",
             context_builder=_builder,
         )
-        product_agent = get_specialized_agent(SpecializedAgentType.PRODUCT)
-        with pytest.raises(SpecializedAgentReasoningNotImplemented):
-            await product_agent.recommend(session, membership=membership, question="test")
+
+        runs_after = await session.scalar(select(func.count()).select_from(AgentRun))
         assert handoff.decision.selected_agent == SpecializedAgentType.CUSTOMER_GROWTH
+        assert runs_before == runs_after
 
 
 @pytest.mark.asyncio

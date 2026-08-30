@@ -35,12 +35,12 @@ from app.services.specialized_agents.grounding import (
     ground_specialized_recommendation,
     parse_specialized_recommendation_payload,
 )
+from app.services.specialized_agents.product_agent import ProductAgent
 from app.services.specialized_agents.registry import (
     get_specialized_agent,
     register,
     registered_agent_types,
 )
-from app.services.specialized_agents.stubs import ProductAgent
 
 __all__ = [
     "AGENT_TYPE_TO_DOMAIN",

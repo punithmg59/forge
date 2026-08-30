@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Callable
 
 from app.schemas.brain import (
     CompanyContext,
@@ -48,6 +49,46 @@ _CUSTOMER_GROWTH_MATCH_TERMS: tuple[str, ...] = (
     "onboarding",
 )
 
+_PRODUCT_MATCH_TERMS: tuple[str, ...] = (
+    "product",
+    "feature",
+    "features",
+    "roadmap",
+    "ux",
+    "ui",
+    "user experience",
+    "usability",
+    "workflow",
+    "quality",
+    "bug",
+    "performance",
+    "release",
+    "version",
+    "activation",
+    "usage",
+    "adoption",
+    "experiment",
+    "prototype",
+    "mvp",
+    "validation",
+    "prioritization",
+    "prioritise",
+    "prioritize",
+    "engineering",
+    "capacity",
+    "onboarding",
+    "technical debt",
+    "confusing",
+    "friction",
+    "usability",
+    "interface",
+    "design",
+    "ship",
+    "shipped",
+    "backlog",
+    "sprint",
+)
+
 _PRODUCT_ONLY_TERMS: tuple[str, ...] = (
     "product roadmap",
     "product feature",
@@ -62,6 +103,13 @@ _PRODUCT_ONLY_TERMS: tuple[str, ...] = (
 
 def _normalize(text: str) -> str:
     return " ".join(text.lower().split())
+
+
+def _matches_product(text: str) -> bool:
+    normalized = _normalize(text)
+    if not normalized:
+        return False
+    return any(term in normalized for term in _PRODUCT_MATCH_TERMS)
 
 
 def _matches_customer_growth(text: str) -> bool:
@@ -146,19 +194,15 @@ def _sources_from_sections(
     return sources
 
 
-def filter_company_context_for_domain(
+def _filter_sections(
     context: CompanyContext,
-    domain: AgentDomain,
+    matcher: Callable[[str], bool],
 ) -> CompanyContext:
-    """Apply domain scoping to Company Brain sections. Task 9.4 extends PRODUCT."""
-    if domain is not AgentDomain.CUSTOMER_GROWTH:
-        return context
-
-    facts = [row for row in context.facts if _matches_customer_growth(_fact_text(row))]
-    beliefs = [row for row in context.beliefs if _matches_customer_growth(_belief_text(row))]
-    decisions = [row for row in context.decisions if _matches_customer_growth(_decision_text(row))]
-    evidence = [row for row in context.evidence if _matches_customer_growth(_evidence_text(row))]
-    learnings = [row for row in context.learnings if _matches_customer_growth(_learning_text(row))]
+    facts = [row for row in context.facts if matcher(_fact_text(row))]
+    beliefs = [row for row in context.beliefs if matcher(_belief_text(row))]
+    decisions = [row for row in context.decisions if matcher(_decision_text(row))]
+    evidence = [row for row in context.evidence if matcher(_evidence_text(row))]
+    learnings = [row for row in context.learnings if matcher(_learning_text(row))]
     constraints = list(context.constraints)
 
     sources = _sources_from_sections(
@@ -187,3 +231,15 @@ def filter_company_context_for_domain(
         sources=sources,
         meta=context.meta,
     )
+
+
+def filter_company_context_for_domain(
+    context: CompanyContext,
+    domain: AgentDomain,
+) -> CompanyContext:
+    """Apply domain scoping to Company Brain sections."""
+    if domain is AgentDomain.CUSTOMER_GROWTH:
+        return _filter_sections(context, _matches_customer_growth)
+    if domain is AgentDomain.PRODUCT:
+        return _filter_sections(context, _matches_product)
+    return context
