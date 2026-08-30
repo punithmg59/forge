@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from app.schemas.brain import CompanyContext
 from app.schemas.specialized_agent import SpecializedAgentContext
+from app.schemas.specialized_agent_types import AgentDomain
 from app.services.retrieval.scope import RetrievalScope
-from app.services.specialized_agents.domain import AgentDomain
+from app.services.specialized_agents.domain_filter import filter_company_context_for_domain
 from app.services.specialized_agents.errors import SpecializedAgentScopeError
 
 
@@ -34,19 +35,20 @@ def build_specialized_agent_context(
 ) -> SpecializedAgentContext:
     """Map CompanyContext into a domain-scoped specialist snapshot.
 
-    Task 9.1 passes through full context. Task 9.3+ will apply domain filters here.
+    Task 9.1 passes through full context. Task 9.3+ applies domain filters here.
     """
+    scoped = filter_company_context_for_domain(company_context, domain)
     return SpecializedAgentContext(
         scope=scope,
         domain=domain,
-        company=company_context.company,
-        objective=company_context.objective,
-        constraints=list(company_context.constraints),
-        facts=list(company_context.facts),
-        beliefs=list(company_context.beliefs),
-        decisions=list(company_context.decisions),
-        evidence=list(company_context.evidence),
-        learnings=list(company_context.learnings),
-        sources=list(company_context.sources),
-        meta=company_context.meta,
+        company=scoped.company,
+        objective=scoped.objective,
+        constraints=list(scoped.constraints),
+        facts=list(scoped.facts),
+        beliefs=list(scoped.beliefs),
+        decisions=list(scoped.decisions),
+        evidence=list(scoped.evidence),
+        learnings=list(scoped.learnings),
+        sources=list(scoped.sources),
+        meta=scoped.meta,
     )

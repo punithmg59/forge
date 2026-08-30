@@ -306,9 +306,10 @@ async def test_route_does_not_execute_specialist_reasoning(
             question="How do we improve customer acquisition?",
             context_builder=_builder,
         )
-        agent = get_specialized_agent(handoff.decision.selected_agent)
+        product_agent = get_specialized_agent(SpecializedAgentType.PRODUCT)
         with pytest.raises(SpecializedAgentReasoningNotImplemented):
-            await agent.recommend(session, membership=membership, question="test")
+            await product_agent.recommend(session, membership=membership, question="test")
+        assert handoff.decision.selected_agent == SpecializedAgentType.CUSTOMER_GROWTH
 
 
 @pytest.mark.asyncio

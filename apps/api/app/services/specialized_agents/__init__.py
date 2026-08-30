@@ -22,6 +22,7 @@ from app.services.specialized_agents.context import (
     assert_scope_matches_membership,
     build_specialized_agent_context,
 )
+from app.services.specialized_agents.customer_growth_agent import CustomerGrowthAgent
 from app.services.specialized_agents.errors import (
     SpecializedAgentContextError,
     SpecializedAgentError,
@@ -39,7 +40,7 @@ from app.services.specialized_agents.registry import (
     register,
     registered_agent_types,
 )
-from app.services.specialized_agents.stubs import CustomerGrowthAgent, ProductAgent
+from app.services.specialized_agents.stubs import ProductAgent
 
 __all__ = [
     "AGENT_TYPE_TO_DOMAIN",

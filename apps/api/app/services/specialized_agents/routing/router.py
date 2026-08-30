@@ -9,6 +9,7 @@ from collections.abc import Awaitable, Callable
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.company_member import CompanyMember
+from app.schemas.specialized_agent import SpecializedAgentRecommendResponse
 from app.schemas.specialized_routing import (
     DeterministicRoutingStatus,
     SpecializedRoutingDecision,
@@ -119,3 +120,38 @@ async def route_specialized_agent(
     )
 
     return SpecializedRoutingHandoff(decision=decision, context=context)
+
+
+async def recommend_routed_specialist(
+    db: AsyncSession,
+    *,
+    membership: CompanyMember,
+    question: str,
+    context_builder: TContextBuilder = build_company_brain_context,
+    provider_factory: Callable[[], LLMProvider] | None = None,
+) -> tuple[SpecializedRoutingHandoff, SpecializedAgentRecommendResponse | None]:
+    """Route then invoke specialist recommend() when a specialist is selected.
+
+    Returns (handoff, None) when routing falls back to Head Agent.
+    Does NOT invoke Head Agent — caller handles general fallback.
+    """
+    handoff = await route_specialized_agent(
+        db,
+        membership=membership,
+        question=question,
+        context_builder=context_builder,
+        provider_factory=provider_factory,
+        include_context=False,
+    )
+    if handoff.decision.fallback_to_head_agent or handoff.decision.selected_agent is None:
+        return handoff, None
+
+    agent = get_specialized_agent(handoff.decision.selected_agent)
+    response = await agent.recommend(
+        db,
+        membership=membership,
+        question=question,
+        context_builder=context_builder,
+        provider_factory=provider_factory,
+    )
+    return handoff, response

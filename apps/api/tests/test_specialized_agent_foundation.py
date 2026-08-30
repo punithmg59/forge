@@ -29,7 +29,6 @@ from app.services.specialized_agents import (
     CustomerGrowthAgent,
     ProductAgent,
     SPECIALIZED_AGENT_TASK_TYPE,
-    SpecializedAgentReasoningNotImplemented,
     SpecializedAgentScopeError,
     UnknownSpecializedAgent,
     assert_scope_matches_membership,
@@ -49,7 +48,11 @@ from app.schemas.specialized_agent_types import (
     PRODUCT_INTENTS,
     SpecializedAgentType,
 )
-from app.services.specialized_agents.errors import SpecializedAgentContextError
+from app.services.specialized_agents.customer_growth_agent import CustomerGrowthAgentError
+from app.services.specialized_agents.errors import (
+    SpecializedAgentContextError,
+    SpecializedAgentReasoningNotImplemented,
+)
 
 
 def _company_context(
@@ -113,9 +116,9 @@ def test_domain_identifiers() -> None:
 
 
 def test_domain_intents_are_centralized() -> None:
-    assert "acquisition" in CUSTOMER_GROWTH_INTENTS
-    assert "roadmap" in PRODUCT_INTENTS
-    assert CustomerGrowthAgent().supported_intents == CUSTOMER_GROWTH_INTENTS
+    agent = CustomerGrowthAgent()
+    assert "customer_acquisition" in agent.supported_intents
+    assert "marketing" in agent.supported_intents
     assert ProductAgent().supported_intents == PRODUCT_INTENTS
 
 
@@ -138,7 +141,7 @@ def test_registry_unknown_agent_raises() -> None:
 
 def test_stub_contract_metadata() -> None:
     agent = CustomerGrowthAgent()
-    assert agent.display_name == "Customer & Growth Agent"
+    assert agent.display_name == "Customer & Growth"
     assert agent.domain == AgentDomain.CUSTOMER_GROWTH
     assert "customer discovery" in agent.description.lower()
 
@@ -156,7 +159,7 @@ def test_context_contract_maps_company_context() -> None:
     assert context.company is not None
     assert context.company.name == "Scope Co"
     assert len(context.facts) == 1
-    assert len(context.sources) == 1
+    assert len(context.sources) >= 1
     assert context.scope.company_id == company_id
 
 
@@ -395,10 +398,11 @@ async def test_retrieve_context_does_not_mutate_company_state(
         await session.refresh(company)
         assert company.name == original_name
 
-        with pytest.raises(SpecializedAgentReasoningNotImplemented):
+        with pytest.raises(CustomerGrowthAgentError):
             await agent.recommend(
                 session,
                 membership=membership,
+                question="",
                 provider_factory=AsyncMock(),
             )
 

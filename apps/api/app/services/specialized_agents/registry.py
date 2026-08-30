@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from app.services.specialized_agents.base import SpecializedAgent
+from app.services.specialized_agents.customer_growth_agent import CustomerGrowthAgent
 from app.services.specialized_agents.domain import SpecializedAgentType, parse_agent_type
 from app.services.specialized_agents.errors import UnknownSpecializedAgent
-from app.services.specialized_agents.stubs import CustomerGrowthAgent, ProductAgent
+from app.services.specialized_agents.stubs import ProductAgent
 
 _REGISTRY: dict[SpecializedAgentType, SpecializedAgent] = {}
 
