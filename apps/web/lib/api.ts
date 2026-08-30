@@ -211,6 +211,22 @@ export type HeadAgentRecommendation = {
 export type HeadAgentRecommendResponse = {
   agent_task_id: string | null;
   recommendation: HeadAgentRecommendation;
+  orchestration_mode?: "head_only" | "single_specialist" | "multi_specialist" | null;
+  specialist_agents?: string[];
+  specialist_analyses?: SpecialistAnalysisSummary[];
+  founder_question?: string | null;
+};
+
+export type SpecialistAnalysisSummary = {
+  agent_type: string;
+  domain: string;
+  display_name: string;
+  agent_task_id: string | null;
+  title: string;
+  recommendation: string;
+  rationale: string;
+  confidence: "low" | "medium" | "high";
+  sources: RecommendationSource[];
 };
 
 export type LearningProposal = {

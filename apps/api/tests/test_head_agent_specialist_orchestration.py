@@ -317,7 +317,7 @@ async def test_broad_question_head_only_one_llm_call(
         async def _builder(db, membership=membership, query=""):  # noqa: ARG001
             return context
 
-        await recommend_next_action(
+        result = await recommend_next_action(
             session,
             membership=membership,
             question="What should we do next?",
@@ -326,6 +326,9 @@ async def test_broad_question_head_only_one_llm_call(
         )
         assert len(provider.requests) == 1
         assert _is_head_direct_request(provider.requests[0])
+        assert result.orchestration_mode == "head_only"
+        assert result.specialist_agents == []
+        assert result.specialist_analyses == []
 
 
 @pytest.mark.asyncio
@@ -415,6 +418,11 @@ async def test_specialist_attribution_in_agent_task(
         assert task.input is not None
         assert task.input.get("specialist_agents") == ["customer_growth"]
         assert task.input.get("orchestration_mode") == "single_specialist"
+        assert result.orchestration_mode == "single_specialist"
+        assert result.specialist_agents == ["customer_growth"]
+        assert len(result.specialist_analyses) == 1
+        assert result.specialist_analyses[0].display_name == "Customer & Growth"
+        assert result.founder_question == "How do we improve customer acquisition?"
 
 
 @pytest.mark.asyncio

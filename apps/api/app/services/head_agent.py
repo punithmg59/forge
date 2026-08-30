@@ -20,8 +20,11 @@ from app.schemas.brain import CompanyContext
 from app.schemas.head_agent import (
     HeadAgentRecommendation,
     HeadAgentRecommendResponse,
+    OrchestrationMode,
     ProposedAction,
+    SpecialistAnalysisSummary,
 )
+from app.schemas.specialized_agent import SpecializedAgentRecommendResponse
 from app.services.brain_context import BrainContextError, build_company_brain_context
 from app.services.head_agent_orchestration import (
     OrchestrationPlanMode,
@@ -51,6 +54,7 @@ from app.services.recommendation_grounding import (
     ground_recommendation_sources,
 )
 from app.services.specialized_agents.errors import SpecializedAgentError
+from app.services.specialized_agents.registry import get_specialized_agent
 
 T = TypeVar("T", bound=LLMProvider)
 
@@ -155,6 +159,55 @@ def _map_provider_error(exc: ProviderError) -> HeadAgentError:
     if isinstance(exc, ProviderUnexpectedError):
         return HeadAgentError("LLM provider error", 502)
     return HeadAgentError("LLM provider error", 502)
+
+
+def _specialist_analyses_from_responses(
+    responses: list[SpecializedAgentRecommendResponse],
+) -> list[SpecialistAnalysisSummary]:
+    analyses: list[SpecialistAnalysisSummary] = []
+    for response in responses:
+        agent = get_specialized_agent(response.agent_type)
+        rec = response.recommendation
+        analyses.append(
+            SpecialistAnalysisSummary(
+                agent_type=response.agent_type.value,
+                domain=response.domain.value,
+                display_name=agent.display_name,
+                agent_task_id=response.agent_task_id,
+                title=rec.title,
+                recommendation=rec.recommendation,
+                rationale=rec.rationale,
+                confidence=rec.confidence,
+                sources=list(rec.sources),
+            )
+        )
+    return analyses
+
+
+def _build_recommend_response(
+    *,
+    agent_task_id: uuid.UUID,
+    recommendation: HeadAgentRecommendation,
+    founder_question: str,
+    orchestration_mode: OrchestrationMode,
+    specialist_responses: list[SpecializedAgentRecommendResponse] | None = None,
+) -> HeadAgentRecommendResponse:
+    specialist_agents = (
+        [r.agent_type.value for r in specialist_responses] if specialist_responses else []
+    )
+    specialist_analyses = (
+        _specialist_analyses_from_responses(specialist_responses)
+        if specialist_responses
+        else []
+    )
+    return HeadAgentRecommendResponse(
+        agent_task_id=agent_task_id,
+        recommendation=recommendation,
+        orchestration_mode=orchestration_mode,
+        specialist_agents=specialist_agents,
+        specialist_analyses=specialist_analyses,
+        founder_question=founder_question,
+    )
 
 
 def _log_head_agent_perf(
@@ -281,9 +334,11 @@ async def _run_head_agent_direct(
         output_chars=output_chars,
         vector_used=vector_used,
     )
-    return HeadAgentRecommendResponse(
+    return _build_recommend_response(
         agent_task_id=agent_task.id,
         recommendation=recommendation,
+        founder_question=founder_question,
+        orchestration_mode="head_only",
     )
 
 
@@ -295,7 +350,7 @@ async def _run_head_agent_synthesis(
     founder_question: str,
     context: CompanyContext,
     provider: LLMProvider,
-    specialist_responses: list,
+    specialist_responses: list[SpecializedAgentRecommendResponse],
     orchestration_mode: str,
     t0: float,
     t1: float,
@@ -352,9 +407,12 @@ async def _run_head_agent_synthesis(
         orchestration_mode=orchestration_mode,
         specialist_count=len(specialist_responses),
     )
-    return HeadAgentRecommendResponse(
+    return _build_recommend_response(
         agent_task_id=agent_task.id,
         recommendation=recommendation,
+        founder_question=founder_question,
+        orchestration_mode=orchestration_mode,
+        specialist_responses=specialist_responses,
     )
 
 
@@ -392,6 +450,8 @@ async def recommend_next_action(
         if context.objective is not None and context.objective.id is not None:
             run.objective_id = context.objective.id
 
+        founder_question = resolve_founder_question(question, context.objective)
+
         if context.objective is None:
             recommendation = no_active_objective_recommendation()
             run.status = "completed"
@@ -419,9 +479,9 @@ async def recommend_next_action(
             return HeadAgentRecommendResponse(
                 agent_task_id=agent_task.id,
                 recommendation=recommendation,
+                orchestration_mode="head_only",
+                founder_question=retrieval_query,
             )
-
-        founder_question = resolve_founder_question(question, context.objective)
         provider = (provider_factory or get_llm_provider)()
         run.model_provider = provider.name
 
@@ -446,7 +506,7 @@ async def recommend_next_action(
             )
 
         specialist_ms = 0.0
-        specialist_responses: list = []
+        specialist_responses: list[SpecializedAgentRecommendResponse] = []
         try:
             specialist_responses, specialist_ms = await invoke_planned_specialists(
                 db,

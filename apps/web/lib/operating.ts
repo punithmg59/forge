@@ -85,7 +85,7 @@ export function mapRecommendationApiError(message: string, status: number): stri
     return "Forge is taking longer than expected. Please try again.";
   }
   if (message.includes("rate limit") || status === 429) {
-    return "Forge is rate-limited. Wait a moment and try again.";
+    return "Forge is temporarily busy. Please try again shortly.";
   }
   if (status >= 500) {
     return OPERATING_ERRORS.recommendation;

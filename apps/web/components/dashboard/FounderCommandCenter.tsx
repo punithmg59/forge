@@ -45,6 +45,7 @@ import {
   isActionableRecommendation,
   mapRecommendationApiError,
 } from "@/lib/operating";
+import { recommendationApprovalStatus } from "@/lib/specialist-intelligence";
 import { enrichTasksWithObjectives } from "@/lib/task-workspace";
 
 const DEFAULT_QUESTION = "What should I focus on next?";
@@ -235,10 +236,21 @@ export function FounderCommandCenter({ companyId }: FounderCommandCenterProps) {
     pendingApprovals.length === 0 &&
     blockedTasks.length === 0;
 
-  const canRequestApproval =
-    recommendation?.agent_task_id &&
-    isActionableRecommendation(recommendation.recommendation) &&
-    !hasPendingApprovalForAgentTask(approvals, recommendation.agent_task_id);
+  const recommendationApprovalState = recommendationApprovalStatus(
+    approvals,
+    recommendation?.agent_task_id ?? null,
+    Boolean(
+      recommendation?.agent_task_id &&
+        isActionableRecommendation(recommendation.recommendation) &&
+        !hasPendingApprovalForAgentTask(approvals, recommendation.agent_task_id) &&
+        !approvals.some(
+          (approval) =>
+            approval.agent_task_id === recommendation.agent_task_id &&
+            (approval.status === "approved" || approval.status === "rejected"),
+        ),
+    ),
+  );
+  const canRequestApproval = recommendationApprovalState === "can_request";
 
   async function onAskForge() {
     if (recommendationLoading || !question.trim()) {
@@ -372,7 +384,8 @@ export function FounderCommandCenter({ companyId }: FounderCommandCenterProps) {
               question={question}
               recommendationLoading={recommendationLoading}
               approvalRequestLoading={approvalRequestLoading}
-              canRequestApproval={Boolean(canRequestApproval)}
+              approvals={approvals}
+              canRequestApproval={canRequestApproval}
               onQuestionChange={setQuestion}
               onAskForge={() => void onAskForge()}
               onRequestApproval={() => void onRequestApproval()}

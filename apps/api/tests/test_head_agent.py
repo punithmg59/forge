@@ -370,7 +370,17 @@ async def test_structured_recommendation_schema_is_returned() -> None:
         provider_factory=lambda: _StubProvider(),
     )
     dumped = result.model_dump()
-    assert set(dumped) == {"agent_task_id", "recommendation"}
+    assert set(dumped) == {
+        "agent_task_id",
+        "recommendation",
+        "orchestration_mode",
+        "specialist_agents",
+        "specialist_analyses",
+        "founder_question",
+    }
+    assert dumped["orchestration_mode"] == "head_only"
+    assert dumped["specialist_agents"] == []
+    assert dumped["specialist_analyses"] == []
     rec = dumped["recommendation"]
     assert set(rec) == {
         "title",
