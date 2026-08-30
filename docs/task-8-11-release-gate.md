@@ -1,21 +1,18 @@
 # TASK 8.11 — FINAL FOUNDER SMOKE TEST & RELEASE GATE
 
-**Date:** 2026-08-30  
+**Date:** 2026-08-30 (second pass — infrastructure restored)  
 **Scope:** Forge Task 8 complete founder operating loop  
 **Release decision:** **READY WITH FIXES**
 
 ---
 
-## 1. Final status
+## 1. Final Status
 
 **READY WITH FIXES**
 
-Automated frontend gates pass. Production config guards verified. Backend automated regression **could not be executed** in this environment because Docker Desktop and PostgreSQL are unavailable (`ConnectionRefusedError` on `localhost:5433`). **No browser-based manual smoke tests were performed** in this session.
+All automated release gates pass with PostgreSQL available. Live API and frontend dev servers run successfully. Live API operating-loop smoke (`apps/api/scripts/release_gate_live_smoke.py`) validates Head Agent grounding, approval gate, task lifecycle, tenant isolation, and error responses.
 
-Task 8 is **not** cleared for Task 9 until:
-1. PostgreSQL is running and `alembic upgrade head` succeeds
-2. Full `pytest` passes (491 tests in suite at time of gate)
-3. Manual founder workflow smoke tests are executed in a live browser
+**Browser-based manual founder smoke tests were not performed** in this agent session (no interactive browser automation available). Task 8 is **not** cleared for Task 9 until §4 browser scenarios are marked PASS by a human founder in a live browser.
 
 ---
 
@@ -23,175 +20,230 @@ Task 8 is **not** cleared for Task 9 until:
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| Docker Desktop | **NOT AVAILABLE** | `dockerDesktopLinuxEngine` pipe missing |
-| PostgreSQL (`localhost:5433`) | **NOT AVAILABLE** | Connection refused |
-| `alembic current` / `upgrade head` | **BLOCKED** | Requires PostgreSQL |
-| Backend API server | **NOT STARTED** | Requires database |
-| Frontend dev server | **NOT STARTED** | Browser smoke not run |
-| `email-validator` | **OK** | v2.3.0 installed |
-| `NEWTRON_API_KEY` | **CONFIGURED** | Present in `.env` (not logged) |
+| Docker Desktop | **OK** | Running |
+| PostgreSQL (`localhost:5433`) | **OK** | `forge-postgres` healthy (`pgvector/pgvector:pg16`) |
+| Redis (`localhost:6379`) | **OK** | `forge-redis` healthy (also up) |
+| `alembic current` / `upgrade head` | **OK** | Head `c2e8f19a24b5` |
+| Backend API (`127.0.0.1:8000`) | **OK** | `uvicorn app.main:app --reload` |
+| Frontend dev (`localhost:3000`) | **OK** | `npm run dev` — login page responds HTTP 200 |
+| `NEWTRON_API_KEY` | **CONFIGURED** | Present in `.env` (value not logged) |
 | Config guards | **VERIFIED** | `scripts/verify_config.py` passed |
 
 **LLM provider/model (configured default):** `newtron` / `nvidia/nemotron-3-ultra-550b-a55b`
 
-OpenAI and Anthropic are **not implemented** in `get_llm_provider()` — external provider comparison was not possible.
+---
+
+## 3. Database/Migration
+
+| Step | Result |
+|------|--------|
+| `alembic current` (before) | `c2e8f19a24b5 (head)` |
+| `alembic upgrade head` | No pending migrations |
+| `alembic current` (after) | `c2e8f19a24b5 (head)` |
+
+Migration chain valid. Expected head applied.
 
 ---
 
-## 3. Automated tests
-
-### Backend (`pytest`)
+## 4. Backend Tests
 
 | Result | Detail |
 |--------|--------|
-| **BLOCKED (environment)** | All DB-dependent tests fail with `ConnectionRefusedError` |
-| Last known green run (Task 8.9) | **491 passed** with PostgreSQL on Docker port 5433 |
-| Failure class | **Environment** — not a product regression observed in this session |
+| **PASS** | **491 passed** in 197.14s |
+| Failure class | None |
 
-### Frontend (`npm test`)
-
-| Result | Detail |
-|--------|--------|
-| **PASS** | 62 / 62 tests (8 files) |
-
-### Frontend build (`npm run build`)
-
-| Result | Detail |
-|--------|--------|
-| **PASS** | Routes: `/dashboard`, `/dashboard/tasks`, `/dashboard/tasks/[taskId]` compile |
-
-### Ruff (`ruff check app/`)
-
-| Result | Detail |
-|--------|--------|
-| **1 pre-existing E501** | `app/schemas/onboarding.py:147` |
-| Benchmark lint | Fixed E501 in `app/benchmarks/` during 8.11 |
+Command: `cd apps/api && pytest -q`
 
 ---
 
-## 4. Manual test results
+## 5. Frontend Tests
+
+| Result | Detail |
+|--------|--------|
+| **PASS** | **62 / 62** tests (8 files) |
+
+Command: `cd apps/web && npm test`
+
+---
+
+## 6. Build
+
+| Result | Detail |
+|--------|--------|
+| **PASS** | Next.js 16.3.2 production build succeeded |
+
+Routes: `/dashboard`, `/dashboard/tasks`, `/dashboard/tasks/[taskId]`, `/login`, `/onboarding`, `/signup`
+
+Command: `cd apps/web && npm run build`
+
+---
+
+## 7. Ruff
+
+| Result | Detail |
+|--------|--------|
+| **1 error** | Pre-existing E501 at `app/schemas/onboarding.py:147` |
+| Task 8 introduced | **None** (benchmark E501 fixed in prior 8.11 pass) |
+
+Command: `cd apps/api && ruff check app/`
+
+---
+
+## 8. Manual Smoke Tests
 
 | Scenario | Result | Notes |
 |----------|--------|-------|
-| Login | **NOT RUN** | Browser smoke not performed |
-| Company load | **NOT RUN** | |
-| Objective | **NOT RUN** | |
-| Head Agent | **NOT RUN** | API-level Head Agent covered by mocked tests when DB available |
-| Missing information | **NOT RUN** | Benchmark eval + head agent tests cover conservative behavior |
-| Prompt injection | **NOT RUN** | `test_malicious_question_cannot_override_grounding_instructions` |
-| Approval | **NOT RUN** | `test_approvals_api`, Task 6 e2e when DB available |
-| Rejection | **NOT RUN** | `test_rejection_path_keeps_learning_out_of_brain` |
-| Task lifecycle | **NOT RUN** | `test_objective_task_status`, `test_objective_task_complete` |
-| Evidence | **NOT RUN** | `test_end_to_end_task7_operating_loop` |
-| Learning proposal | **NOT RUN** | Task 7 evaluation suite |
-| Learning approval | **NOT RUN** | `test_learning_approval` |
-| Learning rejection | **NOT RUN** | `test_rejection_path_keeps_learning_out_of_brain` |
-| Learning correction | **NOT RUN** | `test_end_to_end_task7_operating_loop` (supersede) |
-| Tenant isolation | **NOT RUN** (browser) | **API VERIFIED** via `test_tenant_isolation`, cross-company tests when DB available |
-| Company switching | **NOT RUN** | Stale-request guards present in code (8.7); no integration test |
-| Error handling | **NOT RUN** (browser) | Safe 500 handler + `mapRecommendationApiError` in frontend |
-| Performance | **NOT RUN** | Task 8.9 measured Head Agent ~9–104s e2e (LLM-bound) |
+| Login | **NOT RUN** | Browser not used. API auth register/login verified via live smoke script. |
+| Company load | **NOT RUN** | API company create/list verified live. |
+| Objective | **NOT RUN** | API objective create verified live. |
+| Head Agent | **NOT RUN** | **Live API:** 3 real LLM requests — 53.13s, 60.62s, 51.84s (avg **55.2s**). Stage answer grounded in Brain (`mvp`). Recommendation marked as proposal with rationale, confidence, sources. **Not fast** (10+ seconds). |
+| Missing information | **NOT RUN** | **Live API:** revenue question returned no fabricated number; stated facts empty / not tracked. |
+| Prompt injection | **NOT RUN** | **Live API:** no ₹10 crore fabrication; normal grounded recommendation returned. |
+| Approval | **NOT RUN** | **Live API:** pending approval created; 0 objective tasks before approve, 1 after approve. |
+| Rejection | **NOT RUN** | Covered by `test_rejection_path_keeps_learning_out_of_brain` (pytest). |
+| Task lifecycle | **NOT RUN** | **Live API:** pending→in_progress→blocked→in_progress→completed all HTTP 200. |
+| Evidence | **NOT RUN** | **Live API:** brain query for customer evidence HTTP 200. Evidence on task detail verified in pytest `test_end_to_end_task7_operating_loop`. |
+| Learning proposal | **NOT RUN** | Covered by `test_learning_proposal`, Task 7 e2e (pytest). |
+| Learning approval | **NOT RUN** | Covered by `test_learning_approval`, Task 7 e2e (pytest). |
+| Learning rejection | **NOT RUN** | Covered by `test_rejection_path_keeps_learning_out_of_brain` (pytest). |
+| Learning correction | **NOT RUN** | Covered by Task 7 e2e supersede path (pytest). |
+| Tenant isolation | **NOT RUN** | **Live API:** cross-company task access 403/404; company B cannot see company A objectives. Pytest tenant suite also green. |
+| Company switching | **NOT RUN** | Stale-request guards in frontend code (8.7); no browser Network-tab verification. |
+| Error handling | **NOT RUN** | **Live API:** invalid task 404, invalid company 403, unauthorized cross-company 403. Browser error UX not verified. |
+| Performance | **NOT RUN** | Dashboard `Promise.all` parallel fetch present in code; no browser Network-tab profiling. Head Agent latency measured via live API only. |
 | Mobile (~390px) | **NOT RUN** | |
-| Accessibility | **PARTIAL (code review)** | Company select `aria-label`, Head Agent `aria-live`, TaskDialog semantics |
+| Accessibility | **NOT RUN** | Code review only: company select `aria-label="Select company"`, approval button labels, TaskDialog semantics, `aria-live` on Head Agent panel. |
 
 ---
 
-## 5. End-to-end workflow result
+## 9. Complete Operating Loop
 
-**Automated service-layer E2E (when PostgreSQL available):**
+### Live API smoke (2026-08-30)
 
-| Step | Automated test coverage | Manual browser |
-|------|-------------------------|----------------|
-| Company → Objective | `test_objectives_api`, onboarding tests | NOT RUN |
-| Head Agent recommendation | `test_head_agent`, Task 6 evaluation | NOT RUN |
-| Approval gate | `test_end_to_end_operating_loop_with_approval_gate` | NOT RUN |
-| Founder Task creation | Approvals API + Task 6 e2e | NOT RUN |
-| Task status machine | `test_objective_task_status` | NOT RUN |
-| Task completion | `test_objective_task_complete` | NOT RUN |
-| Evidence | `test_end_to_end_task7_operating_loop` | NOT RUN |
-| Learning proposal | `test_learning_proposal` | NOT RUN |
-| Learning approval | `test_learning_approval` | NOT RUN |
-| Active Brain knowledge | Task 7 e2e retrieval checks | NOT RUN |
-| Learning correction | `test_end_to_end_task7_operating_loop` | NOT RUN |
+Executed against running `forge-api` at `127.0.0.1:8000`:
 
-**Verdict:** Workflow is **extensively covered by backend integration tests** but **not manually verified in browser** in this gate.
+1. Register user → create company → create objective — **OK**
+2. Head Agent stage / next-action / revenue / injection questions — **OK** (slow LLM, grounded)
+3. Request approval on recommendation — **OK** (status `pending`, no task yet)
+4. Approve — **OK** (exactly 1 objective task created)
+5. Task status transitions — **OK**
+6. Task complete with result_summary/metrics/notes — **OK** (HTTP 200)
+7. Brain query for customer evidence — **OK**
+8. Tenant isolation (two companies) — **OK**
+
+### Pytest E2E (same session)
+
+| Test | Result |
+|------|--------|
+| `test_end_to_end_task7_operating_loop` | Included in 491 pass |
+| `test_end_to_end_operating_loop_with_approval_gate` | Included in 491 pass |
+| `test_tenant_isolation` | Included in 491 pass |
+| `test_learning_approval` | Included in 491 pass |
+
+**Verdict:** Operating loop is **verified at API/service layer** (live + pytest). **Browser UI workflow not manually verified.**
 
 ---
 
-## 6. Security result
+## 10. Tenant Isolation
+
+| Layer | Result | Notes |
+|-------|--------|-------|
+| Backend API (live) | **PASS** | Cross-company access returns 403/404 |
+| Backend pytest | **PASS** | `test_tenant_isolation`, cross-company tests |
+| Browser company switch | **NOT RUN** | |
+
+---
+
+## 11. Company Switching
 
 | Check | Result |
 |-------|--------|
-| Hardcoded API keys in app source | **NONE FOUND** (grep + evaluation scans) |
-| Production `SECRET_KEY` guard | **VERIFIED** |
-| CORS configurable | **VERIFIED** |
-| Secure cookies in production | **VERIFIED** (`security.py`) |
-| Global safe 500 handler | **PRESENT** (`main.py`) |
-| Tenant isolation (API) | **VERIFIED** in test suite when DB available |
-| Approval boundary | **VERIFIED** — tasks created only via approval path in tests |
+| Stale-request guards (code) | Present in `FounderCommandCenter`, `FounderTaskWorkspace`, `TaskDetailView` |
+| Browser switch A→B→A | **NOT RUN** |
+| Network tab stale data check | **NOT RUN** |
+
+---
+
+## 12. Security
+
+| Check | Result |
+|-------|--------|
+| `APP_ENV=production` requires strong `SECRET_KEY` | **VERIFIED** (`verify_config.py`) |
+| `CORS_ORIGINS` configurable | **VERIFIED** |
+| Production cookies `secure=True` | **VERIFIED** (`security.py` `_cookie_secure()`) |
+| Hardcoded secrets in app source | **NONE FOUND** (grep; test fixtures only) |
+| Global safe 500 handler | **PRESENT** (`main.py` — no stack trace to client) |
+| Approval boundary | **VERIFIED** — tasks only after approval (live API + pytest) |
 | Head Agent recommend-only | **VERIFIED** — no autonomous mutations |
 
 ---
 
-## 7. Tenant isolation result
+## 13. Performance
 
-- Backend: `test_tenant_isolation.py`, cross-company tests across objectives, tasks, brain, approvals, learnings
-- `test_cross_company_learning_list_blocked` (Task 8.7)
-- Frontend company-switch stale-request guards in `FounderCommandCenter`, `FounderTaskWorkspace`, `TaskDetailView`
-- **Browser company-switch:** NOT RUN
+### Head Agent (live API, Newtron ultra 550b, 2026-08-30)
 
----
+| Request | Latency |
+|---------|---------|
+| Request 1 (company stage) | **53.13 s** |
+| Request 2 (get more customers) | **60.62 s** |
+| Request 3 (monthly revenue) | **51.84 s** |
+| **Approximate average** | **55.2 s** |
 
-## 8. Performance result
+**Assessment:** LLM provider latency dominates. Responses are **not fast** (well above 10 seconds). Consistent with Task 8.9 findings.
 
-From Task 8.9 (live Newtron, not re-measured in 8.11):
+### Dashboard parallel load
 
-| Metric | Value |
-|--------|-------|
-| Head Agent best e2e | ~9,027 ms |
-| Head Agent avg e2e (5 samples) | ~44,710 ms (high provider variance) |
-| Retrieval p50 | ~108 ms |
-| LLM p50 | ~39,491 ms |
-
-Frontend: Task 8.9 loading UX (`Forge is analyzing your company context…`, duplicate-submit guard) — **code present**, **not browser-verified** in 8.11.
-
-Dashboard parallel load (`Promise.all` for objectives, approvals, tasks, learnings) — **code verified**, not network-profiled in browser.
+- Code: `FounderCommandCenter` uses `Promise.all` for objectives, approvals, tasks, learnings.
+- Browser Network-tab verification: **NOT RUN**
 
 ---
 
-## 9. Bugs found
+## 14. Mobile
+
+**NOT RUN** — no 390px viewport browser testing.
+
+---
+
+## 15. Accessibility
+
+**NOT RUN** (browser). Code review confirms:
+
+- Company selector `aria-label="Select company"` on dashboard and task pages
+- Approval actions `aria-label` on approve/reject buttons
+- `TaskDialog` with `aria-labelledby` and close button label
+- Head Agent loading `aria-live` region
+- Task status badges with `aria-label`
+
+Keyboard focus, Escape behavior, and visible focus states: **not browser-tested**.
+
+---
+
+## 16. Bugs Found
 
 | ID | Severity | Finding |
 |----|----------|---------|
-| E1 | Environment | Docker Desktop not running — blocks PostgreSQL, alembic, pytest, live API |
-| E2 | Process | Manual browser smoke tests not yet executed for Task 8 release |
-| — | None | No new product bugs identified in this gate session |
+| B1 | Process | Browser manual smoke tests still not executed |
+| — | None | No new product bugs identified in this gate pass |
 
 ---
 
-## 10. Bugs fixed
+## 17. Bugs Fixed
 
-| File | Change |
-|------|--------|
-| `app/benchmarks/evaluation.py` | Ruff E501 line-length fixes (style only) |
-| `app/benchmarks/head_agent_dataset.py` | Ruff E501 line-length fix (style only) |
-
-No functional product bugs were found requiring fixes in this gate.
+No functional product bugs found in this gate pass. Prior 8.11 pass fixed Ruff E501 in benchmark files only (style).
 
 ---
 
-## 11. Remaining risks
+## 18. Remaining Risks
 
-1. **Manual founder workflow never browser-verified** — highest release risk
-2. **Backend pytest not green in current environment** — must re-run with PostgreSQL
-3. **Head Agent latency** — LLM provider dominates; variable 9s–100s+ responses
-4. **No frontend integration tests** for company switching
-5. **Task 8.10 LLM benchmark report** incomplete in repo — model selection may need re-validation
-6. **Solo-founder MVP auth** — any member can trigger LLM endpoints (documented)
+1. **Manual browser founder workflow not verified** — highest release risk
+2. **Head Agent latency** — ~50–60s per request in live test; high provider variance
+3. **No frontend integration tests** for company switching UX
+4. **Task 8.10 LLM benchmark report** incomplete in repo
+5. **Solo-founder MVP auth** — any company member can trigger LLM endpoints (documented)
 
 ---
 
-## 12. Production requirements
+## 19. Production Requirements
 
 ```env
 APP_ENV=production
@@ -200,41 +252,55 @@ DATABASE_URL=<production-postgres-with-pgvector>
 CORS_ORIGINS=https://<frontend-origin>
 NEWTRON_API_KEY=<secret>
 LLM_MODEL=<benchmark-selected-model>
-NEXT_PUBLIC_API_URL=<api-origin>  # frontend build
+NEXT_PUBLIC_API_URL=<api-origin>
 ```
 
 **Pre-release checklist:**
+
 1. `docker compose up -d postgres` (or managed Postgres with pgvector)
-2. `alembic upgrade head` && `alembic current` at head (`c2e8f19a24b5`)
-3. `pytest` — all green
-4. Manual founder smoke (§4 table) in browser
+2. `alembic upgrade head` && `alembic current` at `c2e8f19a24b5`
+3. `pytest` — all green (491 tests)
+4. Manual founder smoke (§8 table) in a **real browser**
 5. Verify Head Agent UX under real network latency
 
 ---
 
-## 13. Task 9 recommendation
+## 20. Final Release Decision
 
-**Forge is NOT ready to begin Task 9** based on this release gate.
+**READY WITH FIXES**
 
-**Reason:** Critical release verification steps remain incomplete:
-- PostgreSQL-backed `pytest` regression not executed in current environment
-- Full manual founder operating-loop smoke test not performed in browser
+| Gate | Status |
+|------|--------|
+| Infrastructure (Docker + Postgres) | **PASS** |
+| Migrations | **PASS** |
+| Backend pytest (491) | **PASS** |
+| Frontend test + build | **PASS** |
+| Ruff | **PASS** (1 pre-existing E501) |
+| Live API + frontend servers | **PASS** |
+| Live API operating-loop smoke | **PASS** |
+| Browser manual founder smoke | **NOT RUN** |
+| Security config guards | **PASS** |
 
-**When ready for Task 9:**
-- All §4 manual scenarios marked PASS in a live environment
-- `pytest` fully green
-- No blocking security or tenant-isolation failures
-
-Task 8 deliverable status: **implementation complete**, **release verification incomplete**.
+**Forge is NOT ready to begin Task 9** until browser manual scenarios in §8 are executed and marked PASS.
 
 ---
 
-## Appendix: Prior Task 8 automated baseline (PostgreSQL available)
+## 21. Task 9 Recommendation
 
-When Docker Postgres was running (Task 8.8–8.9):
+**Do not start Task 9.**
 
-- `pytest`: 488–491 passed
-- `npm test`: 62 passed
-- `npm run build`: passed
-- Migration head: `c2e8f19a24b5`
-- Core E2E: `test_end_to_end_task7_operating_loop`, `test_end_to_end_operating_loop_with_approval_gate`, `test_end_to_end_pipeline_with_mock_llm`
+Complete browser-based founder smoke test (login through learning correction, tenant switch, mobile, a11y, error UX) in a live environment. If all §8 scenarios pass with no blocking bugs, re-run this gate and set decision to **READY FOR TASK 9**.
+
+Task 8 **implementation** is complete and **automated verification** is green. **Release verification** remains incomplete due to missing browser smoke.
+
+---
+
+## 16. Final Automated Results (summary)
+
+| Check | Result |
+|-------|--------|
+| Backend pytest | **491 passed** (197.14s) |
+| Frontend npm test | **62 passed** |
+| Frontend build | **PASS** |
+| Ruff | **1 pre-existing E501** (`onboarding.py:147`) |
+| Alembic | **c2e8f19a24b5 (head)** |
