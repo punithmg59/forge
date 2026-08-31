@@ -122,6 +122,7 @@ class SqlStructuredRetriever(StructuredRetriever):
             Learning,
             Learning.company_id,
             company_id,
+            status=STATUS_ACTIVE,
             created_at=Learning.created_at,
             id_col=Learning.id,
             limit=RECENT_LIMIT,

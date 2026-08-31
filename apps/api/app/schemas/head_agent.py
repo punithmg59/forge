@@ -52,10 +52,33 @@ class HeadAgentRecommendation(BaseModel):
     confidence: RecommendationConfidence
 
 
+OrchestrationMode = Literal["head_only", "single_specialist", "multi_specialist"]
+
+
+class SpecialistAnalysisSummary(BaseModel):
+    """Specialist domain analysis included in Head Agent orchestration."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    agent_type: str
+    domain: str
+    display_name: str
+    agent_task_id: uuid.UUID | None = None
+    title: str
+    recommendation: str
+    rationale: str
+    confidence: RecommendationConfidence
+    sources: list[ContextSource] = Field(default_factory=list)
+
+
 class HeadAgentRecommendResponse(BaseModel):
-    """Head Agent recommendation plus the persisted proposal reference."""
+    """Head Agent recommendation plus orchestration metadata for the UI."""
 
     model_config = ConfigDict(extra="forbid")
 
     agent_task_id: uuid.UUID | None = None
     recommendation: HeadAgentRecommendation
+    orchestration_mode: OrchestrationMode | None = None
+    specialist_agents: list[str] = Field(default_factory=list)
+    specialist_analyses: list[SpecialistAnalysisSummary] = Field(default_factory=list)
+    founder_question: str | None = None

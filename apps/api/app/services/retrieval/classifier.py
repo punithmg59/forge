@@ -16,6 +16,7 @@ class QueryIntent(str, Enum):
     LEARNINGS = "LEARNINGS"
     FACTS = "FACTS"
     COMPANY_STATE = "COMPANY_STATE"
+    OPERATING = "OPERATING"
     HISTORICAL = "HISTORICAL"
     BROAD = "BROAD"
 
@@ -58,6 +59,7 @@ SECTIONS_FOR_INTENT: dict[QueryIntent, tuple[StructuredSection, ...]] = {
         StructuredSection.BOTTLENECK,
         StructuredSection.CONSTRAINTS,
     ),
+    QueryIntent.OPERATING: ALL_STRUCTURED_SECTIONS,
     QueryIntent.HISTORICAL: (
         StructuredSection.LEARNINGS,
         StructuredSection.EXPERIMENTS,
@@ -134,6 +136,22 @@ _INTENT_TERMS: dict[QueryIntent, tuple[str, ...]] = {
         "bottlenecks",
         "bottleneck",
         "in the way",
+    ),
+    QueryIntent.OPERATING: (
+        "what should",
+        "should we do",
+        "should we",
+        "do next",
+        "focus on next",
+        "focus on",
+        "next step",
+        "get more",
+        "grow",
+        "growth",
+        "customers",
+        "acquire",
+        "highest-leverage",
+        "recommend",
     ),
     QueryIntent.BROAD: (
         "complete picture",

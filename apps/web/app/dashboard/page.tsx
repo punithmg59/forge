@@ -128,6 +128,7 @@ export default function DashboardPage() {
             <select
               className="forge-input w-auto py-2"
               value={active.id}
+              aria-label="Select company"
               onChange={(event) => void onSelectCompany(event.target.value)}
             >
               {companies.map((company) => (
@@ -142,13 +143,18 @@ export default function DashboardPage() {
           </button>
         </div>
       </nav>
-      <main className="relative z-10 mx-auto max-w-3xl px-6 py-10">
-        <p className="mb-2 text-xs tracking-widest uppercase text-white/40">Operating View</p>
-        <h1 className="mb-2 text-3xl font-semibold">{active.name}</h1>
-        <p className="mb-8 text-sm text-white/50">
-          Signed in as {user.name ?? user.email}. Review your objective, Forge recommendation,
-          approvals, and tasks.
-        </p>
+      <main className="relative z-10 mx-auto max-w-6xl px-6 py-10">
+        <p className="mb-2 text-xs tracking-widest uppercase text-white/40">Founder Command Center</p>
+        <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-semibold text-white">{active.name}</h1>
+            <p className="mt-2 text-sm text-white/50">
+              Signed in as {user.name ?? user.email}. Review direction, attention items, execution,
+              and Company Brain.
+            </p>
+          </div>
+          <p className="text-xs text-white/40">Operating console</p>
+        </div>
         <OperatingView companyId={activeId} />
       </main>
     </div>

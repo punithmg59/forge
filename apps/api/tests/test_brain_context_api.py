@@ -319,7 +319,7 @@ def test_retrieval_failure_returns_api_error(mock_build: AsyncMock) -> None:
 
 
 @pytest.mark.asyncio
-async def test_vector_provider_failure_maps_to_api_error() -> None:
+async def test_vector_provider_failure_degrades_to_structured_context() -> None:
     membership = MagicMock()
     membership.company_id = uuid.uuid4()
     membership.user_id = uuid.uuid4()
@@ -334,16 +334,17 @@ async def test_vector_provider_failure_maps_to_api_error() -> None:
         "app.services.brain_context.classify_query",
         return_value=_classification(vector_needed=True),
     ):
-        with pytest.raises(BrainContextError) as exc:
-            await build_company_brain_context(
-                db,
-                membership=membership,
-                query="Give me a complete picture of the company.",
-                structured_retriever_factory=lambda _db: structured,
-                vector_retriever_factory=lambda _db: vector,
-            )
+        context = await build_company_brain_context(
+            db,
+            membership=membership,
+            query="Give me a complete picture of the company.",
+            structured_retriever_factory=lambda _db: structured,
+            vector_retriever_factory=lambda _db: vector,
+        )
 
-    assert exc.value.status_code == 502
+    assert context.memories == []
+    structured.retrieve.assert_awaited_once()
+    vector.retrieve.assert_awaited_once()
 
 
 @pytest.mark.asyncio

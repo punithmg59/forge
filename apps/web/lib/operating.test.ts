@@ -40,7 +40,9 @@ describe("operating view helpers", () => {
         resolved_at: null,
         resolved_by: null,
         objective_task_id: null,
+        learning_id: null,
         recommendation: null,
+        learning_proposal: null,
       },
       {
         id: "2",
@@ -54,7 +56,9 @@ describe("operating view helpers", () => {
         resolved_at: "2026-08-24T01:00:00Z",
         resolved_by: "u1",
         objective_task_id: "task-1",
+        learning_id: null,
         recommendation: null,
+        learning_proposal: null,
       },
     ];
     expect(filterPendingApprovals(approvals)).toHaveLength(1);
@@ -118,7 +122,9 @@ describe("operating view helpers", () => {
         resolved_at: null,
         resolved_by: null,
         objective_task_id: null,
+        learning_id: null,
         recommendation: null,
+        learning_proposal: null,
       },
     ];
     expect(hasPendingApprovalForAgentTask(approvals, "task-1")).toBe(true);
