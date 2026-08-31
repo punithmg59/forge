@@ -9,6 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.company_member import CompanyMember
 from app.schemas.execution import (
     ExecutionPlan,
+    ExecutionPlanningRequest,
+    ExecutionPlanningResult,
     ExecutionRequest,
     ExecutionResult,
     ExecutionStepResult,
@@ -17,9 +19,11 @@ from app.services.execution.approval_policy import apply_approval_policy_to_plan
 from app.services.execution.errors import ExecutionRunnerError
 from app.services.execution.identity import assert_execution_tenant, new_execution_identity
 from app.services.execution.plan_validation import validate_execution_plan
+from app.services.execution.planner import ExecutionPlanner
 from app.services.execution.policy import ExecutionRuntimePolicy
 from app.services.execution.runner import ExecutionRunner
 from app.services.execution.state import validate_execution_status_transition
+from app.services.llm import LLMProvider
 from app.services.tools.executor import ToolExecutor
 
 
@@ -84,6 +88,17 @@ class ExecutionFoundationOrchestrator:
         annotated = self.validate_and_annotate_plan(plan)
         validate_execution_status_transition(request.status, "planned")
         return request.model_copy(update={"plan": annotated, "status": "planned"})
+
+    async def create_plan(
+        self,
+        request: ExecutionPlanningRequest,
+        membership: CompanyMember,
+        *,
+        llm_provider: LLMProvider | None = None,
+    ) -> ExecutionPlanningResult:
+        """Synthesize a structured candidate execution plan. Does not execute tools."""
+        planner = ExecutionPlanner(llm_provider, runtime_policy=self._policy)
+        return await planner.plan(request, membership)
 
     async def run_execution(
         self,

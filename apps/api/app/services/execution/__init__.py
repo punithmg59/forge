@@ -18,6 +18,7 @@ from app.services.execution.errors import (
 from app.services.execution.identity import assert_execution_tenant, new_execution_identity
 from app.services.execution.orchestrator import ExecutionFoundationOrchestrator
 from app.services.execution.plan_validation import validate_execution_plan
+from app.services.execution.planner import ExecutionPlanner
 from app.services.execution.policy import ExecutionRuntimePolicy
 from app.services.execution.runner import ExecutionRunner
 from app.services.execution.state import (
@@ -34,6 +35,7 @@ __all__ = [
     "ExecutionError",
     "ExecutionFoundationOrchestrator",
     "ExecutionNotApprovedError",
+    "ExecutionPlanner",
     "ExecutionRunner",
     "ExecutionRunnerError",
     "ExecutionRuntimePolicy",
