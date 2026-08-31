@@ -38,6 +38,15 @@ class Settings(BaseSettings):
     github_client_secret: str = ""
     posthog_api_key: str = ""
 
+    tool_default_timeout_ms: int = 5000
+    tool_external_timeout_ms: int = 15000
+    tool_max_input_bytes: int = 8192
+    tool_max_output_bytes: int = 65536
+    tool_max_records: int = 100
+    tool_max_calls_per_request: int = 10
+    tool_max_total_execution_ms: int = 30000
+    tool_allow_write_tools: bool = False
+
     @model_validator(mode="after")
     def validate_production_secret(self) -> "Settings":
         if self.app_env == "production" and self.secret_key in INSECURE_SECRET_KEYS:
