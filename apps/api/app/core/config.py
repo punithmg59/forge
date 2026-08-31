@@ -47,6 +47,11 @@ class Settings(BaseSettings):
     tool_max_total_execution_ms: int = 30000
     tool_allow_write_tools: bool = False
 
+    execution_max_steps_per_plan: int = 20
+    execution_max_tool_calls_per_step: int = 5
+    execution_max_retries_per_step: int = 3
+    execution_max_duration_ms: int = 120000
+
     @model_validator(mode="after")
     def validate_production_secret(self) -> "Settings":
         if self.app_env == "production" and self.secret_key in INSECURE_SECRET_KEYS:
