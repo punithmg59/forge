@@ -38,6 +38,7 @@ ALLOWED_ACTION_TYPES: frozenset[ProposedActionType] = frozenset(
 )
 
 ACTION_TYPE_LEARNING = "learning"
+ACTION_TYPE_EXECUTION = "execution"
 
 CONFIDENCE_RISK: dict[str, str] = {
     "low": "low",
@@ -388,6 +389,23 @@ async def approve_approval(
 
     if approval.action_type == ACTION_TYPE_LEARNING:
         await _activate_learning_on_approve(db, approval=approval)
+        approval.status = STATUS_APPROVED
+        approval.resolved_at = _utcnow_iso()
+        approval.resolved_by = user.id
+        await db.commit()
+        await db.refresh(approval)
+        return approval, None
+
+    if approval.action_type == ACTION_TYPE_EXECUTION:
+        if approval.agent_task_id is None:
+            raise ApprovalError("Execution plan not found", 404)
+        agent_task = await get_agent_task_for_company(
+            db,
+            company_id=approval.company_id,
+            agent_task_id=approval.agent_task_id,
+        )
+        if agent_task is None:
+            raise ApprovalError("Execution plan not found", 404)
         approval.status = STATUS_APPROVED
         approval.resolved_at = _utcnow_iso()
         approval.resolved_by = user.id

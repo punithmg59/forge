@@ -10,11 +10,16 @@ from app.services.execution.audit import (
     new_execution_run,
     new_execution_status_task,
 )
-from app.services.execution.errors import ExecutionError, ExecutionNotImplementedError
+from app.services.execution.errors import (
+    ExecutionError,
+    ExecutionNotApprovedError,
+    ExecutionRunnerError,
+)
 from app.services.execution.identity import assert_execution_tenant, new_execution_identity
 from app.services.execution.orchestrator import ExecutionFoundationOrchestrator
 from app.services.execution.plan_validation import validate_execution_plan
 from app.services.execution.policy import ExecutionRuntimePolicy
+from app.services.execution.runner import ExecutionRunner
 from app.services.execution.state import (
     can_retry_execution,
     is_execution_terminal,
@@ -28,7 +33,9 @@ __all__ = [
     "EXECUTION_STATUS_TASK_TYPE",
     "ExecutionError",
     "ExecutionFoundationOrchestrator",
-    "ExecutionNotImplementedError",
+    "ExecutionNotApprovedError",
+    "ExecutionRunner",
+    "ExecutionRunnerError",
     "ExecutionRuntimePolicy",
     "assert_execution_tenant",
     "can_retry_execution",

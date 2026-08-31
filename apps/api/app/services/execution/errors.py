@@ -28,3 +28,16 @@ class ExecutionPlanError(ExecutionError):
 class ExecutionNotImplementedError(ExecutionError):
     def __init__(self, detail: str = "Autonomous execution is not enabled yet.") -> None:
         super().__init__(detail, status_code=501)
+
+
+class ExecutionNotApprovedError(ExecutionError):
+    def __init__(self) -> None:
+        super().__init__(
+            "Execution is not approved.",
+            status_code=403,
+        )
+
+
+class ExecutionRunnerError(ExecutionError):
+    def __init__(self, detail: str, status_code: int = 400) -> None:
+        super().__init__(detail, status_code=status_code)

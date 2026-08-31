@@ -60,6 +60,7 @@ class ToolExecutor:
         context: ToolExecutionContext,
         *,
         agent_run_id: uuid.UUID | None = None,
+        timeout_override_ms: int | None = None,
     ) -> ToolResult:
         trace_id = call.trace_id or context.trace_id
         started = time.perf_counter()
@@ -84,7 +85,9 @@ class ToolExecutor:
                 raise ToolDisabledError(qualified_name)
             authorize_tool_execution(context, tool.required_permissions)
             validated_input = self._validate_input(tool, call.input)
-            timeout_ms = tool.timeout_ms or self._timeout_for_category(tool.category)
+            timeout_ms = timeout_override_ms or tool.timeout_ms or self._timeout_for_category(
+                tool.category
+            )
             raw_output = await asyncio.wait_for(
                 tool.execute(self._db, context, validated_input),
                 timeout=timeout_ms / 1000.0,

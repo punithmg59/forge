@@ -45,9 +45,7 @@ ExecutionStepStatus = Literal[
 ExecutionRisk = Literal["low", "medium", "high", "critical"]
 
 EXECUTION_TERMINAL_STATUSES = frozenset({"succeeded", "cancelled"})
-EXECUTION_STEP_TERMINAL_STATUSES = frozenset(
-    {"succeeded", "failed", "skipped", "cancelled"}
-)
+EXECUTION_STEP_TERMINAL_STATUSES = frozenset({"succeeded", "skipped", "cancelled"})
 
 
 class ExecutionStepCategory(str, Enum):
@@ -191,7 +189,20 @@ class ExecutionStepResult(BaseModel):
     output_summary: str | None = None
     error_code: str | None = None
     error_message: str | None = None
+    retryable: bool = False
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    duration_ms: float | None = None
     attempts: list[ExecutionAttempt] = Field(default_factory=list)
+
+
+class ExecutionRunMetrics(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    validation_ms: float = 0.0
+    tool_execution_ms: float = 0.0
+    persistence_ms: float = 0.0
+    total_ms: float = 0.0
 
 
 class ExecutionResult(BaseModel):
@@ -203,6 +214,7 @@ class ExecutionResult(BaseModel):
     step_results: list[ExecutionStepResult] = Field(default_factory=list)
     completed_at: datetime | None = None
     failure_reason: str | None = None
+    metrics: ExecutionRunMetrics | None = None
 
 
 class ExecutionPolicy(BaseModel):
@@ -237,3 +249,34 @@ class ExecutionCancelRequest(BaseModel):
     @classmethod
     def strip_reason(cls, value: str) -> str:
         return value.strip()
+
+
+class ExecutionErrorCode(str, Enum):
+    EXECUTION_NOT_APPROVED = "EXECUTION_NOT_APPROVED"
+    EXECUTION_INVALID_STATE = "EXECUTION_INVALID_STATE"
+    EXECUTION_PLAN_INVALID = "EXECUTION_PLAN_INVALID"
+    EXECUTION_SCOPE_DENIED = "EXECUTION_SCOPE_DENIED"
+    EXECUTION_TIMEOUT = "EXECUTION_TIMEOUT"
+    EXECUTION_POLICY_DENIED = "EXECUTION_POLICY_DENIED"
+    EXECUTION_STEP_FAILED = "EXECUTION_STEP_FAILED"
+    EXECUTION_CANCELLED = "EXECUTION_CANCELLED"
+    EXECUTION_ALREADY_TERMINAL = "EXECUTION_ALREADY_TERMINAL"
+
+
+class StepExecutionError(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    code: str
+    message: str
+    retryable: bool = False
+
+
+class ExecutionRunState(BaseModel):
+    """Persisted execution state for idempotent runner invocations."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    request: ExecutionRequest
+    step_results: list[ExecutionStepResult] = Field(default_factory=list)
+    plan_agent_task_id: uuid.UUID | None = None
+    agent_run_id: uuid.UUID | None = None
