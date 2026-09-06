@@ -37,6 +37,8 @@ class Approval(Base, UUIDPrimaryKeyMixin):
     resolved_by: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
+    plan_fingerprint: Mapped[str | None] = mapped_column(nullable=True)
+    expires_at: Mapped[str | None] = mapped_column(nullable=True)
 
     # Constraints
     __table_args__ = (

@@ -280,3 +280,126 @@ class ExecutionRunState(BaseModel):
     step_results: list[ExecutionStepResult] = Field(default_factory=list)
     plan_agent_task_id: uuid.UUID | None = None
     agent_run_id: uuid.UUID | None = None
+
+
+ExecutionPlanningDecision = Literal["no_execution", "plan_ready", "plan_rejected"]
+
+
+class ExecutionPlanningRequest(BaseModel):
+    """Input parameters for execution planning."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    company_id: uuid.UUID
+    founder_question: str = Field(min_length=1, max_length=MAX_EXECUTION_GOAL_LENGTH)
+    objective_id: uuid.UUID | None = None
+    objective_task_id: uuid.UUID | None = None
+    agent_type: str = Field(default="head_agent", min_length=1, max_length=64)
+    brain_context: dict[str, Any] | None = None
+    available_tools: list[str] = Field(default_factory=list)
+    trace_id: str | None = Field(default=None, max_length=128)
+    policy: ExecutionPolicy | None = None
+
+    @field_validator("founder_question", "agent_type")
+    @classmethod
+    def strip_fields(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("must not be blank")
+        return stripped
+
+
+class ExecutionPlanningMetrics(BaseModel):
+    """Instrumentation metrics for execution planning."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    planning_ms: float = 0.0
+    llm_ms: float = 0.0
+    validation_ms: float = 0.0
+    total_ms: float = 0.0
+
+
+class ExecutionPlanningResult(BaseModel):
+    """Outcome of execution planning. Never executes tools."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    decision: ExecutionPlanningDecision
+    plan: ExecutionPlan | None = None
+    reason: str | None = None
+    warnings: list[str] = Field(default_factory=list)
+    validation_errors: list[str] = Field(default_factory=list)
+    approval_required: bool = False
+    planner_trace_id: str = Field(min_length=1, max_length=128)
+    metrics: ExecutionPlanningMetrics | None = None
+
+
+class ExecutionStepReview(BaseModel):
+    """Founder-facing review representation of a single execution step."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    step_id: str
+    sequence: int
+    tool_name: str
+    tool_version: str
+    purpose: str
+    input: dict[str, Any] = Field(default_factory=dict)
+    expected_output: str | None = None
+    risk_level: ExecutionRisk
+    step_category: ExecutionStepCategory
+    approval_required: bool
+    timeout_ms: int | None = None
+
+
+class ExecutionReview(BaseModel):
+    """Founder-facing review representation of an execution plan awaiting approval."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    execution_id: uuid.UUID
+    approval_id: uuid.UUID
+    company_id: uuid.UUID
+    objective_id: uuid.UUID | None = None
+    objective_task_id: uuid.UUID | None = None
+    agent_type: str
+    goal: str
+    rationale: str
+    risk_level: ExecutionRisk
+    status: str
+    steps: list[ExecutionStepReview]
+    tool_summary: list[str]
+    approval_required: bool
+    plan_fingerprint: str
+    expires_at: str | None = None
+    requested_at: str
+    trace_id: str
+
+
+class ExecutionStatusResponse(BaseModel):
+    """Founder-facing execution status and details."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    execution_id: uuid.UUID
+    company_id: uuid.UUID
+    objective_id: uuid.UUID | None = None
+    objective_task_id: uuid.UUID | None = None
+    agent_type: str
+    requested_by: uuid.UUID
+    trace_id: str
+    status: ExecutionStatus
+    created_at: str
+    started_at: str | None = None
+    completed_at: str | None = None
+    failure_reason: str | None = None
+    cancel_reason: str | None = None
+
+    plan: ExecutionPlan | None = None
+    plan_fingerprint: str | None = None
+    approval_status: str | None = None
+    approval_expires_at: str | None = None
+
+    step_results: list[ExecutionStepResult] = Field(default_factory=list)
+    metrics: ExecutionRunMetrics | None = None
