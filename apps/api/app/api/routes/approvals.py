@@ -11,6 +11,7 @@ from app.db.dependencies import get_db
 from app.models.company_member import CompanyMember
 from app.models.user import User
 from app.schemas.approval import ApprovalCreateRequest, ApprovalListResponse, ApprovalPublic
+from app.schemas.execution import ExecutionReview
 from app.services.approval_presenter import approval_to_public, approvals_to_public
 from app.services.approval_service import (
     ApprovalError,
@@ -22,6 +23,8 @@ from app.services.approval_service import (
     reject_approval,
 )
 from app.services.company_service import COMPANY_MANAGE_ROLES
+from app.services.execution.approval_verification import get_approved_execution_approval
+from app.services.execution.review_presenter import execution_review_from_approval
 
 router = APIRouter(
     prefix="/companies/{company_id}/approvals",
@@ -122,3 +125,36 @@ async def post_reject_approval(
     except ApprovalError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.detail) from None
     return await approval_to_public(db, updated)
+
+
+@router.get("/{approval_id}/execution-review", response_model=ExecutionReview)
+async def get_execution_review(
+    company_id: uuid.UUID,
+    approval_id: uuid.UUID,
+    execution_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _membership: Annotated[CompanyMember, Depends(require_company_access)],
+) -> ExecutionReview:
+    """Get founder-facing execution plan review for an approval."""
+    approval = await get_approval(db, company_id=company_id, approval_id=approval_id)
+    if approval is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Approval not found",
+        )
+    
+    # Verify this is an execution approval
+    from app.services.approval_service import ACTION_TYPE_EXECUTION
+    if approval.action_type != ACTION_TYPE_EXECUTION:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Approval is not an execution plan",
+        )
+    
+    try:
+        return await execution_review_from_approval(db, approval, execution_id=execution_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from None

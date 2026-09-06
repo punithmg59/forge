@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import uuid
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -50,6 +53,31 @@ async def verify_execution_approved(
     )
     if approval is None:
         raise ExecutionNotApprovedError()
+
+    # Check expiration
+    if approval.expires_at is not None:
+        expires_dt = datetime.fromisoformat(approval.expires_at)
+        if datetime.now(UTC) >= expires_dt:
+            raise ExecutionRunnerError("Execution plan has expired.", status_code=409)
+
+    # Verify fingerprint matches current plan
+    agent_task = await get_agent_task_for_company(
+        db,
+        company_id=company_id,
+        agent_task_id=plan_agent_task_id,
+    )
+    if agent_task is None:
+        raise ExecutionRunnerError("Execution plan not found.", status_code=404)
+
+    current_plan = parse_plan_from_agent_task(agent_task)
+    current_fingerprint = compute_plan_fingerprint(current_plan)
+
+    if approval.plan_fingerprint != current_fingerprint:
+        raise ExecutionRunnerError(
+            "Execution plan has changed since approval. New approval required.",
+            status_code=409,
+        )
+
     return approval
 
 
@@ -81,6 +109,12 @@ async def create_execution_approval(
     if pending is not None:
         return pending
 
+    plan = parse_plan_from_agent_task(agent_task)
+    fingerprint = compute_plan_fingerprint(plan)
+
+    # Plan expires 24 hours after request
+    expires_at = (datetime.now(UTC) + timedelta(hours=24)).replace(microsecond=0).isoformat()
+
     description = _plan_description(agent_task)
     approval = Approval(
         company_id=company_id,
@@ -90,6 +124,8 @@ async def create_execution_approval(
         risk_level=_plan_risk_level(agent_task),
         status=STATUS_PENDING,
         requested_at=_utcnow_iso(),
+        plan_fingerprint=fingerprint,
+        expires_at=expires_at,
     )
     db.add(approval)
     await db.flush()
@@ -125,3 +161,34 @@ def parse_plan_from_agent_task(agent_task: AgentTask) -> ExecutionPlan:
         return ExecutionPlan.model_validate(agent_task.output)
     except Exception as exc:
         raise ExecutionRunnerError("Execution plan payload is invalid.", status_code=400) from exc
+
+
+def compute_plan_fingerprint(plan: ExecutionPlan) -> str:
+    """
+    Compute a deterministic SHA256 fingerprint of an execution plan.
+
+    The fingerprint ensures plan immutability - if any material field changes,
+    the fingerprint will not match and the approval becomes invalid.
+    """
+    canonical = json.dumps(
+        {
+            "goal": plan.goal,
+            "rationale": plan.rationale,
+            "risk_level": plan.risk_level,
+            "steps": [
+                {
+                    "step_id": step.step_id,
+                    "sequence": step.sequence,
+                    "tool_name": step.tool_name,
+                    "tool_version": step.tool_version,
+                    "purpose": step.purpose,
+                    "input": step.input,
+                    "risk_level": step.risk_level,
+                }
+                for step in sorted(plan.steps, key=lambda s: s.sequence)
+            ],
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()

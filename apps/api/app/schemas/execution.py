@@ -333,3 +333,45 @@ class ExecutionPlanningResult(BaseModel):
     approval_required: bool = False
     planner_trace_id: str = Field(min_length=1, max_length=128)
     metrics: ExecutionPlanningMetrics | None = None
+
+
+class ExecutionStepReview(BaseModel):
+    """Founder-facing review representation of a single execution step."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    step_id: str
+    sequence: int
+    tool_name: str
+    tool_version: str
+    purpose: str
+    input: dict[str, Any] = Field(default_factory=dict)
+    expected_output: str | None = None
+    risk_level: ExecutionRisk
+    step_category: ExecutionStepCategory
+    approval_required: bool
+    timeout_ms: int | None = None
+
+
+class ExecutionReview(BaseModel):
+    """Founder-facing review representation of an execution plan awaiting approval."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    execution_id: uuid.UUID
+    approval_id: uuid.UUID
+    company_id: uuid.UUID
+    objective_id: uuid.UUID | None = None
+    objective_task_id: uuid.UUID | None = None
+    agent_type: str
+    goal: str
+    rationale: str
+    risk_level: ExecutionRisk
+    status: str
+    steps: list[ExecutionStepReview]
+    tool_summary: list[str]
+    approval_required: bool
+    plan_fingerprint: str
+    expires_at: str | None = None
+    requested_at: str
+    trace_id: str

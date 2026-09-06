@@ -295,6 +295,40 @@ export type ApprovalListResponse = {
   approvals: Approval[];
 };
 
+export type ExecutionStepReview = {
+  step_id: string;
+  sequence: number;
+  tool_name: string;
+  tool_version: string;
+  purpose: string;
+  input: Record<string, unknown>;
+  expected_output: string | null;
+  risk_level: "low" | "medium" | "high" | "critical";
+  step_category: string;
+  approval_required: boolean;
+  timeout_ms: number | null;
+};
+
+export type ExecutionReview = {
+  execution_id: string;
+  approval_id: string;
+  company_id: string;
+  objective_id: string | null;
+  objective_task_id: string | null;
+  agent_type: string;
+  goal: string;
+  rationale: string;
+  risk_level: "low" | "medium" | "high" | "critical";
+  status: string;
+  steps: ExecutionStepReview[];
+  tool_summary: string[];
+  approval_required: boolean;
+  plan_fingerprint: string;
+  expires_at: string | null;
+  requested_at: string;
+  trace_id: string;
+};
+
 export type FounderTask = {
   id: string;
   company_id: string;
@@ -455,6 +489,16 @@ export function rejectApproval(companyId: string, approvalId: string) {
   return api<Approval>(
     `/api/v1/companies/${companyId}/approvals/${approvalId}/reject`,
     { method: "POST" },
+  );
+}
+
+export function getExecutionReview(
+  companyId: string,
+  approvalId: string,
+  executionId: string,
+) {
+  return api<ExecutionReview>(
+    `/api/v1/companies/${companyId}/approvals/${approvalId}/execution-review?execution_id=${executionId}`,
   );
 }
 
