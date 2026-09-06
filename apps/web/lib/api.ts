@@ -329,6 +329,77 @@ export type ExecutionReview = {
   trace_id: string;
 };
 
+export type ExecutionStepResult = {
+  step_id: string;
+  sequence: number;
+  status: string;
+  tool_qualified_name: string;
+  output_summary: string | null;
+  error_code: string | null;
+  error_message: string | null;
+  retryable: boolean;
+  started_at: string | null;
+  completed_at: string | null;
+  duration_ms: number | null;
+  attempts: Array<{
+    attempt_id: string;
+    execution_id: string;
+    step_id: string;
+    attempt_number: number;
+    status: string;
+    started_at: string;
+    completed_at: string | null;
+    error_code: string | null;
+    error_message: string | null;
+    trace_id: string;
+  }>;
+};
+
+export type ExecutionPlan = {
+  goal: string;
+  rationale: string;
+  risk_level: "low" | "medium" | "high" | "critical";
+  steps: ExecutionStepReview[];
+};
+
+export type ExecutionRunMetrics = {
+  validation_ms: number;
+  tool_execution_ms: number;
+  persistence_ms: number;
+  total_ms: number;
+};
+
+export type ExecutionStatus = {
+  execution_id: string;
+  company_id: string;
+  objective_id: string | null;
+  objective_task_id: string | null;
+  agent_type: string;
+  requested_by: string;
+  trace_id: string;
+  status:
+    | "requested"
+    | "planned"
+    | "waiting_for_approval"
+    | "approved"
+    | "running"
+    | "succeeded"
+    | "failed"
+    | "cancelled"
+    | "retrying";
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+  failure_reason: string | null;
+  cancel_reason: string | null;
+  plan: ExecutionPlan | null;
+  plan_fingerprint: string | null;
+  approval_status: string | null;
+  approval_expires_at: string | null;
+  step_results: ExecutionStepResult[];
+  metrics: ExecutionRunMetrics | null;
+};
+
 export type FounderTask = {
   id: string;
   company_id: string;
@@ -499,6 +570,12 @@ export function getExecutionReview(
 ) {
   return api<ExecutionReview>(
     `/api/v1/companies/${companyId}/approvals/${approvalId}/execution-review?execution_id=${executionId}`,
+  );
+}
+
+export function getExecutionStatus(companyId: string, executionId: string) {
+  return api<ExecutionStatus>(
+    `/api/v1/companies/${companyId}/executions/${executionId}`,
   );
 }
 

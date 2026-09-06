@@ -375,3 +375,31 @@ class ExecutionReview(BaseModel):
     expires_at: str | None = None
     requested_at: str
     trace_id: str
+
+
+class ExecutionStatusResponse(BaseModel):
+    """Founder-facing execution status and details."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    execution_id: uuid.UUID
+    company_id: uuid.UUID
+    objective_id: uuid.UUID | None = None
+    objective_task_id: uuid.UUID | None = None
+    agent_type: str
+    requested_by: uuid.UUID
+    trace_id: str
+    status: ExecutionStatus
+    created_at: str
+    started_at: str | None = None
+    completed_at: str | None = None
+    failure_reason: str | None = None
+    cancel_reason: str | None = None
+
+    plan: ExecutionPlan | None = None
+    plan_fingerprint: str | None = None
+    approval_status: str | None = None
+    approval_expires_at: str | None = None
+
+    step_results: list[ExecutionStepResult] = Field(default_factory=list)
+    metrics: ExecutionRunMetrics | None = None

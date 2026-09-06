@@ -6,6 +6,7 @@ from app.api.routes import (
     brain,
     companies,
     evidence,
+    executions,
     head_agent,
     learnings,
     objective_tasks,
@@ -24,3 +25,4 @@ api_router.include_router(evidence.router)
 api_router.include_router(learnings.router)
 api_router.include_router(head_agent.router)
 api_router.include_router(approvals.router)
+api_router.include_router(executions.router)
